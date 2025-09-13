@@ -53,11 +53,11 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
     llm_handlers = create_llm_handlers()
     lead_handlers = LeadHandlers(lead_service)
     
-    # Подключаем обработчики
-    dp.include_router(basic_handlers.router)
-    dp.include_router(search_handlers.router)
-    dp.include_router(llm_handlers.router)
-    dp.include_router(lead_handlers.router)
+    # Подключаем обработчики (порядок важен!)
+    dp.include_router(lead_handlers.router)      # Первый - самые специфичные
+    dp.include_router(search_handlers.router)    # Поисковые callback'и
+    dp.include_router(basic_handlers.router)     # Основные команды (приоритет ниже)
+    dp.include_router(llm_handlers.router)       # Последний - обрабатывает весь текст
     
     # Инициализируем уведомления и мониторинг
     notifier = get_telegram_notifier(bot)
