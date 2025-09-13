@@ -199,6 +199,25 @@ class SearchHandlers:
         )
         
         await callback.message.edit_text(response_text, parse_mode="HTML")
+
+    async def callback_search_all_categories(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Обработчик поиска по всем категориям."""
+        await callback.answer()
+        
+        await callback.message.edit_text(
+            "📂 <b>Все категории</b>\n\n"
+            "Выберите категорию или введите название товара:",
+            parse_mode="HTML",
+            reply_markup=self.search_keyboards.back_to_search_menu()
+        )
+        
+        # Показываем все категории
+        await self._show_categories(
+            user_id=callback.from_user.id,
+            chat_id=callback.message.chat.id,
+            message=callback.message,
+            page=0
+        )
     
     async def callback_search_category(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Обработчик поиска в конкретной категории."""
