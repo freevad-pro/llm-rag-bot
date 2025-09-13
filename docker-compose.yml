@@ -9,6 +9,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/catalog_db
       - DEBUG=true
       - LOG_LEVEL=INFO
+      - OPENAI_API_KEY=sk-test-key-for-development-only
+      - DEFAULT_LLM_PROVIDER=yandex
       # Development пароль: "password" (НЕ используйте в production!)
     depends_on:
       - postgres

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....domain.services import search_orchestrator, is_contact_request
 from ..keyboards.search_keyboards import get_contact_manager_keyboard
-from ..services.message_service import MessageService
+from ..services.message_service import save_message, get_conversation_history
 
 
 class LLMHandlers:
