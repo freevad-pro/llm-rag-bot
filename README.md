@@ -166,7 +166,7 @@ src/
 - Docker + Docker Compose
 
 ### Ежемесячные затраты
-- VPS хостинг: ~1,000 ₽
+- VPS хостинг: ~1,400 ₽
 - LLM API: ~500 ₽  
 - Домен: ~50 ₽
 - **Итого: ~1,550 ₽/мес**
@@ -260,7 +260,7 @@ docker-compose -f docker-compose.prod.yml up -d
 # 3. Обновление промптов (опционально)
 python scripts/quick_update_prompts.py
 docker cp temp/update_prompts.sql llm-rag-bot-postgres-1:/tmp/
-docker-compose exec postgres psql -U postgres -d catalog_db -f /tmp/update_prompts.sql
+docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -d catalog_db -f /tmp/update_prompts.sql
 ```
 
 ### 🔄 Автоматическое обновление

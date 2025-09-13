@@ -153,8 +153,8 @@ cp docker-compose.yml docker-compose.prod.yml
 
 ### Шаг 3: Настройка переменных окружения
 ```bash
-# Копируем пример и настраиваем
-cp /opt/llm-bot/app/env.example /opt/llm-bot/config/.env
+# Копируем production конфигурацию и настраиваем
+cp /opt/llm-bot/app/env.production /opt/llm-bot/config/.env
 
 # Редактируем конфигурацию
 nano /opt/llm-bot/config/.env

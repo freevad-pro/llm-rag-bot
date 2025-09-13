@@ -13,6 +13,10 @@ services:
       - "8000:8000"
     env_file:
       - /opt/llm-bot/config/.env
+    environment:
+      # Принудительная установка критичных переменных (приоритет над системными)
+      DEBUG: "false"
+      ENVIRONMENT: "production"
     depends_on:
       postgres:
         condition: service_healthy
