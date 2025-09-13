@@ -9,6 +9,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/catalog_db
       - DEBUG=true
       - LOG_LEVEL=INFO
+      # Development пароль: "password" (НЕ используйте в production!)
     depends_on:
       - postgres
     volumes:
@@ -22,7 +23,7 @@ services:
     environment:
       POSTGRES_DB: catalog_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: password  # ТОЛЬКО для разработки! В production смените!
     ports:
       - "5432:5432"
     volumes:
