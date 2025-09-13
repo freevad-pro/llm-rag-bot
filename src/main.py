@@ -138,12 +138,42 @@ async def api_info():
     }
 
 
+async def run_bot_only():
+    """Запуск только Telegram бота без FastAPI"""
+    await hybrid_logger.info("Запуск Telegram бота...")
+    
+    try:
+        # Инициализация БД
+        await create_tables()
+        await hybrid_logger.info("База данных инициализирована")
+        
+        # Проверка токена
+        if not settings.bot_token:
+            await hybrid_logger.critical("BOT_TOKEN не настроен!")
+            return
+        
+        # Запуск бота
+        await start_bot()
+        
+    except Exception as e:
+        await hybrid_logger.critical(f"Ошибка запуска бота: {e}")
+        raise
+
+
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "src.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug,
-        log_level=settings.log_level.lower()
-    )
+    import sys
+    
+    # Проверяем аргументы командной строки
+    if len(sys.argv) > 1 and sys.argv[1] == "bot":
+        # Запуск только бота
+        asyncio.run(run_bot_only())
+    else:
+        # Запуск FastAPI сервера
+        import uvicorn
+        uvicorn.run(
+            "src.main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=settings.debug,
+            log_level=settings.log_level.lower()
+        )

@@ -590,6 +590,49 @@ docker-compose -f docker-compose.prod.yml exec app env | grep DEBUG
 - Критичные переменные задавайте в `environment` секции Docker Compose
 - Используйте изолированных пользователей для приложений
 
+### Проблема: POSTGRES_PASSWORD не читается из .env файла
+
+**Симптомы:**
+- `WARN[0000] The "POSTGRES_PASSWORD" variable is not set`
+- PostgreSQL контейнер не запускается (unhealthy)
+
+**Причина:**
+Docker Compose не может прочитать переменные из `.env` файла из-за проблем с правами доступа или путями.
+
+**Диагностика:**
+```bash
+# Проверить что переменная есть в .env
+grep POSTGRES_PASSWORD /opt/llm-bot/config/.env
+
+# Проверить что Docker Compose config видит переменную
+docker-compose -f docker-compose.prod.yml config | grep POSTGRES_PASSWORD
+```
+
+**Решение:**
+```bash
+# Временно установить переменную в окружении
+export POSTGRES_PASSWORD=password
+
+# Запустить контейнеры
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Постоянное решение:**
+1. **Добавить переменные напрямую в docker-compose.prod.yml:**
+   ```yaml
+   postgres:
+     environment:
+       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-password}"
+   ```
+
+2. **Создать startup скрипт:**
+   ```bash
+   #!/bin/bash
+   source /opt/llm-bot/config/.env
+   export POSTGRES_PASSWORD
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
 ---
 
 **🎉 Поздравляем! Ваш ИИ-бот успешно развернут и готов к работе!**
