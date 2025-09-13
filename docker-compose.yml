@@ -1,0 +1,33 @@
+# Удаляем устаревший параметр version
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/catalog_db
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+    volumes:
+      - ./data/persistent/chroma:/app/data/chroma
+      - ./data/uploads:/app/data/uploads
+      - ./src:/app/src  # Для hot reload в development
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
