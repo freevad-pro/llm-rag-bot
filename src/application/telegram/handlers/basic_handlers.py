@@ -62,6 +62,9 @@ async def handle_start(message: Message, session: AsyncSession):
         # Inline клавиатура с быстрыми действиями
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
+                InlineKeyboardButton(text="🔍 Поиск товаров", callback_data="new_search")
+            ],
+            [
                 InlineKeyboardButton(text="📞 Связаться с менеджером", callback_data="contact_manager"),
                 InlineKeyboardButton(text="❓ Помощь", callback_data="help")
             ]
@@ -124,6 +127,8 @@ async def handle_help(message: Message, session: AsyncSession):
 
 <b>⚡ Быстрые команды:</b>
 /start - начать работу
+/search - поиск товаров
+/categories - категории товаров
 /help - эта справка
 /contact - связаться с менеджером
 
@@ -131,6 +136,10 @@ async def handle_help(message: Message, session: AsyncSession):
         """
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔍 Поиск товаров", callback_data="new_search"),
+                InlineKeyboardButton(text="📂 Категории", callback_data="search_by_categories")
+            ],
             [InlineKeyboardButton(text="📞 Связаться с менеджером", callback_data="contact_manager")]
         ])
         
