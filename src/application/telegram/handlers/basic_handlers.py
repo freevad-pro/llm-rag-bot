@@ -249,6 +249,7 @@ async def handle_text_message(message: Message, session: AsyncSession):
 @router.callback_query(F.data == "help")
 async def callback_help(callback_query, session: AsyncSession):
     """Обработчик callback для кнопки помощи"""
+    await hybrid_logger.info(f"🔘 Обработчик callback_help вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer()
     
     # Вызываем обработчик help через имитацию команды
@@ -264,6 +265,7 @@ async def callback_help(callback_query, session: AsyncSession):
 @router.callback_query(F.data == "contact_manager")
 async def callback_contact(callback_query, session: AsyncSession):
     """Обработчик callback для кнопки связи с менеджером"""
+    await hybrid_logger.info(f"🔘 Обработчик callback_contact вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer("Переключаю на связь с менеджером...")
     
     # Вызываем обработчик contact
