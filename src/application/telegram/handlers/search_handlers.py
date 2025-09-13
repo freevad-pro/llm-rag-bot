@@ -326,7 +326,26 @@ class SearchHandlers:
             
         except Exception as e:
             self._logger.error(f"Ошибка поиска по артикулу: {e}")
-            await message.answer("❌ Ошибка поиска. Попробуйте еще раз.")
+            await message.answer("❌ Ошибка поиска. Попробуйте еще раз."        )
+
+    async def callback_search_results_page(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Обработчик пагинации результатов поиска."""
+        await callback.answer()
+        
+        # Извлекаем номер страницы из callback_data
+        try:
+            page = int(callback.data.split(":", 1)[1])
+        except (ValueError, IndexError):
+            page = 0
+        
+        # Здесь будет логика загрузки следующей страницы результатов
+        # Пока показываем заглушку
+        await callback.message.edit_text(
+            f"📄 <b>Страница результатов: {page + 1}</b>\n\n"
+            "Пагинация результатов поиска будет реализована в следующих итерациях.",
+            parse_mode="HTML",
+            reply_markup=self.search_keyboards.back_to_search_menu()
+        )
     
     async def callback_product_details(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Обработчик показа деталей товара."""
@@ -511,3 +530,39 @@ class SearchHandlers:
             await self.message_service.save_assistant_message(
                 user_id, chat_id, error_text
             )
+
+    async def callback_product_photo(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Обработчик показа фото товара."""
+        await callback.answer()
+        
+        product_id = callback.data.split(":", 1)[1]
+        await callback.message.edit_text(
+            f"📷 <b>Фото товара ID: {product_id}</b>\n\n"
+            "Просмотр фотографий товара будет доступен в следующих итерациях.",
+            parse_mode="HTML",
+            reply_markup=self.search_keyboards.back_to_search_menu()
+        )
+
+    async def callback_product_page(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Обработчик перехода на страницу товара."""
+        await callback.answer()
+        
+        product_id = callback.data.split(":", 1)[1]
+        await callback.message.edit_text(
+            f"🌐 <b>Страница товара ID: {product_id}</b>\n\n"
+            "Переход на веб-страницу товара будет доступен в следующих итерациях.",
+            parse_mode="HTML",
+            reply_markup=self.search_keyboards.back_to_search_menu()
+        )
+
+    async def callback_ask_about_product(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Обработчик вопроса о товаре."""
+        await callback.answer()
+        
+        product_id = callback.data.split(":", 1)[1]
+        await callback.message.edit_text(
+            f"❓ <b>Вопрос о товаре ID: {product_id}</b>\n\n"
+            "Задать вопрос о товаре менеджеру будет доступно в следующих итерациях.",
+            parse_mode="HTML",
+            reply_markup=self.search_keyboards.back_to_search_menu()
+        )
