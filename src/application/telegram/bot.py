@@ -12,6 +12,7 @@ from src.config.settings import settings
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
 from src.application.telegram.handlers import basic_handlers
 from src.application.telegram.handlers.search_handlers import SearchHandlers
+from src.application.telegram.handlers.llm_handlers import create_llm_handlers
 from src.application.telegram.middleware import DatabaseMiddleware
 from src.application.telegram.services.message_service import MessageService
 from src.infrastructure.search.catalog_service import CatalogSearchService
@@ -46,11 +47,15 @@ async def create_dispatcher() -> Dispatcher:
     # Создаем обработчики поиска
     search_handlers = SearchHandlers(catalog_service, message_service)
     
+    # Создаем LLM обработчики
+    llm_handlers = create_llm_handlers(message_service)
+    
     # Подключаем обработчики
     dp.include_router(basic_handlers.router)
     dp.include_router(search_handlers.router)
+    dp.include_router(llm_handlers.router)
     
-    await hybrid_logger.info("Dispatcher настроен с поддержкой поиска")
+    await hybrid_logger.info("Dispatcher настроен с поддержкой поиска и LLM интеграции")
     return dp
 
 

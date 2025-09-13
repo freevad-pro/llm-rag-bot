@@ -18,6 +18,8 @@ class Settings:
         # LLM
         self.default_llm_provider: str = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
         self.openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+        self.yandex_api_key: str = os.getenv("YANDEX_API_KEY", "")
+        self.yandex_folder_id: str = os.getenv("YANDEX_FOLDER_ID", "")
         
         # CRM
         self.zoho_token_endpoint: str = os.getenv("ZOHO_TOKEN_ENDPOINT", "")
