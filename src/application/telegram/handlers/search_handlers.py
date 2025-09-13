@@ -14,7 +14,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from ....infrastructure.search.catalog_service import CatalogSearchService
 from ..keyboards.search_keyboards import SearchKeyboardBuilder, get_main_search_keyboard, get_contact_manager_keyboard
-from ..services.message_service import MessageService
+from ..services import message_service
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ class SearchHandlers:
     
     def __init__(
         self, 
-        catalog_service: CatalogSearchService,
-        message_service: MessageService
+        catalog_service: CatalogSearchService
     ) -> None:
         """
         Инициализация обработчиков поиска.
@@ -42,7 +41,6 @@ class SearchHandlers:
             message_service: Сервис для работы с сообщениями
         """
         self.catalog_service = catalog_service
-        self.message_service = message_service
         self.router = Router()
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         

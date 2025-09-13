@@ -28,3 +28,18 @@ async def get_db() -> AsyncSession:
             yield session
         finally:
             await session.close()
+
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def get_session():
+    """Контекстный менеджер для получения сессии БД"""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

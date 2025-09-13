@@ -13,9 +13,13 @@ from src.infrastructure.logging.hybrid_logger import hybrid_logger
 from src.application.telegram.handlers import basic_handlers
 from src.application.telegram.handlers.search_handlers import SearchHandlers
 from src.application.telegram.handlers.llm_handlers import create_llm_handlers
+from src.application.telegram.handlers.lead_handlers import LeadHandlers
 from src.application.telegram.middleware import DatabaseMiddleware
-from src.application.telegram.services.message_service import MessageService
+from src.application.telegram.services import message_service
+from src.application.telegram.services.lead_service import LeadService
 from src.infrastructure.search.catalog_service import CatalogSearchService
+from src.infrastructure.notifications.telegram_notifier import get_telegram_notifier
+from src.infrastructure.tasks.inactive_users_monitor import get_inactive_users_monitor
 
 
 async def create_bot() -> Bot:
@@ -32,7 +36,7 @@ async def create_bot() -> Bot:
     return bot
 
 
-async def create_dispatcher() -> Dispatcher:
+async def create_dispatcher(bot: Bot) -> Dispatcher:
     """Создание и настройка диспетчера"""
     dp = Dispatcher()
     
@@ -40,22 +44,29 @@ async def create_dispatcher() -> Dispatcher:
     dp.message.middleware(DatabaseMiddleware())
     dp.callback_query.middleware(DatabaseMiddleware())
     
-    # Инициализируем сервисы для поиска
+    # Инициализируем сервисы
     catalog_service = CatalogSearchService()
-    message_service = MessageService()
+    lead_service = LeadService()
     
-    # Создаем обработчики поиска
-    search_handlers = SearchHandlers(catalog_service, message_service)
-    
-    # Создаем LLM обработчики
-    llm_handlers = create_llm_handlers(message_service)
+    # Создаем обработчики
+    search_handlers = SearchHandlers(catalog_service)
+    llm_handlers = create_llm_handlers()
+    lead_handlers = LeadHandlers(lead_service)
     
     # Подключаем обработчики
     dp.include_router(basic_handlers.router)
     dp.include_router(search_handlers.router)
     dp.include_router(llm_handlers.router)
+    dp.include_router(lead_handlers.router)
     
-    await hybrid_logger.info("Dispatcher настроен с поддержкой поиска и LLM интеграции")
+    # Инициализируем уведомления и мониторинг
+    notifier = get_telegram_notifier(bot)
+    monitor = get_inactive_users_monitor(lead_service, notifier)
+    
+    # Запускаем мониторинг неактивных пользователей
+    await monitor.start()
+    
+    await hybrid_logger.info("Dispatcher настроен с поддержкой поиска, LLM и управления лидами")
     return dp
 
 
@@ -65,7 +76,7 @@ async def start_bot():
         await hybrid_logger.info("Запуск Telegram бота...")
         
         bot = await create_bot()
-        dp = await create_dispatcher()
+        dp = await create_dispatcher(bot)
         
         # Получаем информацию о боте
         bot_info = await bot.get_me()

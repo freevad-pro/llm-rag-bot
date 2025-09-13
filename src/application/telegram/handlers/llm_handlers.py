@@ -21,14 +21,13 @@ class LLMHandlers:
     Обрабатывает все текстовые сообщения через поисковый оркестратор.
     """
     
-    def __init__(self, message_service: MessageService) -> None:
+    def __init__(self) -> None:
         """
         Инициализация LLM обработчиков.
         
         Args:
             message_service: Сервис для работы с сообщениями
         """
-        self.message_service = message_service
         self.router = Router()
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
@@ -239,7 +238,7 @@ class LLMHandlers:
 
 
 # Функция для создания экземпляра обработчиков
-def create_llm_handlers(message_service: MessageService) -> LLMHandlers:
+def create_llm_handlers() -> LLMHandlers:
     """
     Создает экземпляр LLM обработчиков.
     
@@ -249,4 +248,4 @@ def create_llm_handlers(message_service: MessageService) -> LLMHandlers:
     Returns:
         Настроенные LLM обработчики
     """
-    return LLMHandlers(message_service)
+    return LLMHandlers()

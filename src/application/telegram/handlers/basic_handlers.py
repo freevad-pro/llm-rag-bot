@@ -60,15 +60,8 @@ async def handle_start(message: Message, session: AsyncSession):
         """
         
         # Inline клавиатура с быстрыми действиями
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="🔍 Поиск товаров", callback_data="new_search")
-            ],
-            [
-                InlineKeyboardButton(text="📞 Связаться с менеджером", callback_data="contact_manager"),
-                InlineKeyboardButton(text="❓ Помощь", callback_data="help")
-            ]
-        ])
+        from src.application.telegram.keyboards.lead_keyboards import get_main_menu_keyboard
+        keyboard = get_main_menu_keyboard()
         
         # Отправляем ответ
         sent_message = await message.answer(

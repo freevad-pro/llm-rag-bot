@@ -10,12 +10,12 @@ from typing import Optional
 
 import chromadb
 from chromadb.config import Settings
-from chromadb.utils import embedding_functions
-from sentence_transformers import SentenceTransformer
 
 from ...domain.entities.product import Product, SearchResult
 from ...domain.interfaces.search import CatalogSearchProtocol, BaseSearchService
+from ...config.settings import settings
 from .excel_loader import ExcelCatalogLoader
+from .openai_embeddings import OpenAIEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +25,19 @@ class CatalogSearchService(BaseSearchService):
     Сервис поиска товаров через Chroma DB.
     
     Использует:
-    - HuggingFaceEmbeddings: paraphrase-multilingual-MiniLM-L12-v2 (согласно @vision.md)
+    - OpenAI Embeddings API: text-embedding-3-small (оптимизация после MVP)
     - Chroma persist_directory: /app/data/chroma
     - Blue-green deployment при переиндексации
+    
+    Преимущества OpenAI embeddings:
+    - Экономия ~350MB в Docker образе
+    - Лучшее качество поиска для коммерческих каталогов
+    - Оптимизация для CPU-серверов
     """
     
     COLLECTION_NAME = "products_catalog"
-    EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
     
-    def __init__(self, persist_dir: str = "/app/data/chroma") -> None:
+    def __init__(self, persist_dir: Optional[str] = None) -> None:
         """
         Инициализация сервиса поиска.
         
@@ -41,8 +45,12 @@ class CatalogSearchService(BaseSearchService):
             persist_dir: Директория для персистентного хранения Chroma DB
         """
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        self._persist_dir = Path(persist_dir)
+        self._persist_dir = Path(persist_dir or settings.chroma_persist_dir)
         self._persist_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Настройки из конфигурации
+        self.embedding_model = settings.embedding_model
+        self.embedding_provider = settings.embedding_provider
         
         # Инициализация Chroma клиента
         self._client = chromadb.PersistentClient(
@@ -51,9 +59,16 @@ class CatalogSearchService(BaseSearchService):
         )
         
         # Инициализация функции эмбеддингов
-        self._embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=self.EMBEDDING_MODEL
-        )
+        if self.embedding_provider == "openai":
+            self._embedding_function = OpenAIEmbeddingFunction(
+                model=self.embedding_model,
+                batch_size=settings.embedding_batch_size
+            )
+        else:
+            # Fallback на sentence-transformers (если нужно для совместимости)
+            raise ValueError(f"Неподдерживаемый embedding provider: {self.embedding_provider}")
+        
+        self._logger.info(f"Используется {self.embedding_provider} embeddings: {self.embedding_model}")
         
         # Загрузчик Excel файлов
         self._excel_loader = ExcelCatalogLoader()
@@ -273,6 +288,8 @@ class CatalogSearchService(BaseSearchService):
             
             # Проверяем доступность модели эмбеддингов
             test_embedding = self._embedding_function(["test"])
+            if not test_embedding or len(test_embedding) == 0:
+                return False
             
             return True
             
@@ -288,8 +305,10 @@ class CatalogSearchService(BaseSearchService):
             stats = {
                 "indexed": await self.is_indexed(),
                 "persist_dir": str(self._persist_dir),
-                "embedding_model": self.EMBEDDING_MODEL,
-                "collection_name": self.COLLECTION_NAME
+                "embedding_model": self.embedding_model,
+                "embedding_provider": "OpenAI",
+                "collection_name": self.COLLECTION_NAME,
+                "optimization": "CPU-optimized (no sentence-transformers)"
             }
             
             if collection:
