@@ -416,6 +416,34 @@ class LeadHandlers:
         except Exception as e:
             await hybrid_logger.error(f"Ошибка в handle_skip_field: {e}")
             await callback.answer("Произошла ошибка. Попробуйте позже.")
+
+    async def handle_skip_additional_contact(
+        self, 
+        callback: CallbackQuery, 
+        state: FSMContext,
+        session: AsyncSession
+    ) -> None:
+        """Пропуск дополнительного контакта"""
+        try:
+            await callback.answer()
+            
+            # Переходим к следующему обязательному полю или показываем подтверждение
+            current_state = await state.get_state()
+            
+            if current_state == LeadStates.waiting_for_phone.state:
+                # Если пропускаем телефон, переходим к email
+                await callback.message.edit_text(
+                    "📧 Укажите email для связи (необязательно):",
+                    reply_markup=get_skip_optional_keyboard()
+                )
+                await state.set_state(LeadStates.waiting_for_email)
+            else:
+                # Показываем подтверждение с имеющимися данными
+                await self._show_confirmation(callback.message, state)
+                
+        except Exception as e:
+            await hybrid_logger.error(f"Ошибка в handle_skip_additional_contact: {e}")
+            await callback.answer("Произошла ошибка. Попробуйте позже.")
     
     async def process_company_input(
         self, 
@@ -545,6 +573,45 @@ class LeadHandlers:
                 "Попробуйте позже или свяжитесь с нами другим способом.",
                 reply_markup=None
             )
+
+    async def handle_edit_lead(
+        self, 
+        callback: CallbackQuery, 
+        state: FSMContext,
+        session: AsyncSession
+    ) -> None:
+        """Редактирование данных лида"""
+        try:
+            await callback.answer()
+            
+            # Показываем меню редактирования
+            user_data = await state.get_data()
+            name = user_data.get('name', 'Не указано')
+            phone = user_data.get('phone', 'Не указано')
+            email = user_data.get('email', 'Не указано')
+            company = user_data.get('company', 'Не указано')
+            question = user_data.get('question', 'Не указано')
+            
+            edit_text = (
+                "✏️ <b>Редактирование заявки</b>\n\n"
+                f"👤 <b>Имя:</b> {name}\n"
+                f"📞 <b>Телефон:</b> {phone}\n"
+                f"📧 <b>Email:</b> {email}\n"
+                f"🏢 <b>Компания:</b> {company}\n"
+                f"❓ <b>Вопрос:</b> {question}\n\n"
+                "Редактирование отдельных полей будет доступно в следующих итерациях.\n"
+                "Сейчас можете заполнить заново или подтвердить текущие данные."
+            )
+            
+            await callback.message.edit_text(
+                edit_text,
+                parse_mode="HTML",
+                reply_markup=get_confirmation_keyboard()
+            )
+            
+        except Exception as e:
+            await hybrid_logger.error(f"Ошибка в handle_edit_lead: {e}")
+            await callback.answer("Произошла ошибка. Попробуйте позже.")
     
     async def handle_cancel_contact(
         self, 
