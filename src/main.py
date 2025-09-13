@@ -11,6 +11,7 @@ import asyncio
 from src.config.settings import settings
 from src.infrastructure.database.connection import create_tables, get_db_health
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
+from src.application.telegram.bot import start_bot, stop_bot
 
 
 @asynccontextmanager
@@ -19,12 +20,18 @@ async def lifespan(app: FastAPI):
     # Startup
     await hybrid_logger.info("Запуск приложения LLM RAG Bot...")
     
+    bot_task = None
     try:
         # Инициализация БД
         await create_tables()
         await hybrid_logger.info("База данных инициализирована")
         
-        # TODO: В следующих итерациях добавить инициализацию Telegram бота
+        # Запуск Telegram бота если токен настроен
+        if settings.bot_token:
+            bot_task = asyncio.create_task(start_bot())
+            await hybrid_logger.info("Telegram бот запущен в фоновом режиме")
+        else:
+            await hybrid_logger.warning("BOT_TOKEN не настроен, Telegram бот не запущен")
         
         yield
         
@@ -33,6 +40,14 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         # Shutdown
+        if bot_task:
+            bot_task.cancel()
+            try:
+                await bot_task
+            except asyncio.CancelledError:
+                pass
+            await hybrid_logger.info("Telegram бот остановлен")
+        
         await hybrid_logger.info("Завершение работы приложения")
 
 
@@ -110,14 +125,15 @@ async def api_info():
     return {
         "name": "LLM RAG Bot",
         "version": "0.1.0",
-        "iteration": "MVP-1",
+        "iteration": "MVP-2",
         "features": {
-            "telegram_bot": "not_implemented",
+            "telegram_bot": "implemented" if settings.bot_token else "not_configured",
             "catalog_search": "not_implemented", 
             "lead_management": "not_implemented",
             "admin_panel": "not_implemented"
         },
         "database": "connected",
+        "telegram_configured": bool(settings.bot_token),
         "debug": settings.debug
     }
 
