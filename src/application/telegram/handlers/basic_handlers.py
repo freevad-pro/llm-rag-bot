@@ -77,8 +77,9 @@ async def handle_start(message: Message, session: AsyncSession):
             content=welcome_text
         )
         
+        # Логируем начало нового чата
         await hybrid_logger.business(
-            f"Новый пользователь: {user.chat_id}",
+            f"Новый чат: {user.chat_id}",
             {"username": user.username, "first_name": user.first_name}
         )
         
