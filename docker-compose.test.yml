@@ -16,7 +16,7 @@ services:
   app-test:
     build: 
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.test
     ports:
       - "8001:8000"  # Другой порт чтобы не конфликтовать с dev
     env_file:
@@ -26,6 +26,12 @@ services:
       DATABASE_URL: "postgresql+asyncpg://test_user:test_pass@postgres-test:5432/test_catalog_db"
       # Отключаем Telegram бота в FastAPI контейнере (работает только в bot-test)
       DISABLE_TELEGRAM_BOT: "true"
+      # Отключение телеметрии ChromaDB
+      ANONYMIZED_TELEMETRY: "false"
+      ALLOW_RESET: "true"
+      # Дополнительное отключение posthog и телеметрии
+      POSTHOG_DISABLED: "true"
+      CHROMA_TELEMETRY_DISABLED: "true"
     depends_on:
       postgres-test:
         condition: service_healthy
@@ -49,7 +55,7 @@ services:
   bot-test:
     build: 
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.test
     command: python -m src.main bot
     env_file:
       - env.test

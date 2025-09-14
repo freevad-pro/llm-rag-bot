@@ -33,7 +33,9 @@ class ExcelCatalogLoader:
         'section name 2': 'section_name_2',
         'product name': 'product_name',
         'description': 'description',
-        'category': 'category',
+        'category 1': 'category_1',
+        'category 2': 'category_2',
+        'category 3': 'category_3',
         'article': 'article'
     }
     

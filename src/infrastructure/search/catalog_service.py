@@ -5,17 +5,64 @@
 
 import logging
 import hashlib
+import warnings
 from pathlib import Path
 from typing import Optional
 
+# Подавляем предупреждения телеметрии ChromaDB
+warnings.filterwarnings("ignore", message=".*telemetry.*")
+warnings.filterwarnings("ignore", message=".*posthog.*")
+
 import chromadb
 from chromadb.config import Settings
+
+# Дополнительное подавление ошибок телеметрии через monkey patching
+def _silence_telemetry():
+    """Подавляет сообщения об ошибках телеметрии ChromaDB"""
+    try:
+        # Подавляем на уровне posthog модуля
+        import chromadb.telemetry.posthog as posthog_module
+        original_capture = getattr(posthog_module, 'capture', None)
+        if original_capture:
+            def silent_capture(*args, **kwargs):
+                pass
+            posthog_module.capture = silent_capture
+            
+        # Подавляем на уровне логгера
+        import chromadb.telemetry
+        telemetry_logger = logging.getLogger('chromadb.telemetry')
+        telemetry_logger.setLevel(logging.CRITICAL + 1)  # Выше CRITICAL
+        
+        # Дополнительное подавление через stdout перехват
+        import sys
+        class TelemetryFilter:
+            def __init__(self, stream):
+                self.stream = stream
+                
+            def write(self, data):
+                if 'Failed to send telemetry event' not in str(data) and 'telemetry' not in str(data).lower():
+                    self.stream.write(data)
+                    
+            def flush(self):
+                self.stream.flush()
+                
+        # Применяем фильтр только если еще не применен
+        if not hasattr(sys.stderr, '_telemetry_filtered'):
+            sys.stderr = TelemetryFilter(sys.stderr)
+            sys.stderr._telemetry_filtered = True
+            
+    except (ImportError, AttributeError):
+        pass
+
+# Вызываем функцию подавления
+_silence_telemetry()
 
 from ...domain.entities.product import Product, SearchResult
 from ...domain.interfaces.search import CatalogSearchProtocol, BaseSearchService
 from ...config.settings import settings
 from .excel_loader import ExcelCatalogLoader
 from .openai_embeddings import OpenAIEmbeddingFunction
+from .sentence_transformers_embeddings import SentenceTransformersEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +99,14 @@ class CatalogSearchService(BaseSearchService):
         self.embedding_model = settings.embedding_model
         self.embedding_provider = settings.embedding_provider
         
-        # Инициализация Chroma клиента
+        # Инициализация Chroma клиента с полным отключением телеметрии
+        chroma_settings = Settings(
+            anonymized_telemetry=False,
+            allow_reset=True
+        )
         self._client = chromadb.PersistentClient(
             path=str(self._persist_dir),
-            settings=Settings(anonymized_telemetry=False)
+            settings=chroma_settings
         )
         
         # Инициализация функции эмбеддингов
@@ -64,9 +115,14 @@ class CatalogSearchService(BaseSearchService):
                 model=self.embedding_model,
                 batch_size=settings.embedding_batch_size
             )
+        elif self.embedding_provider == "sentence-transformers":
+            self._embedding_function = SentenceTransformersEmbeddingFunction(
+                model_name=self.embedding_model,
+                batch_size=settings.embedding_batch_size
+            )
         else:
-            # Fallback на sentence-transformers (если нужно для совместимости)
-            raise ValueError(f"Неподдерживаемый embedding provider: {self.embedding_provider}")
+            raise ValueError(f"Неподдерживаемый embedding provider: {self.embedding_provider}. "
+                           f"Поддерживаются: openai, sentence-transformers")
         
         self._logger.info(f"Используется {self.embedding_provider} embeddings: {self.embedding_model}")
         
@@ -108,10 +164,11 @@ class CatalogSearchService(BaseSearchService):
             except Exception:
                 pass  # Коллекция не существует
             
-            # Создаем временную коллекцию
+            # Создаем временную коллекцию с cosine similarity
             temp_collection = self._client.create_collection(
                 name=temp_collection_name,
-                embedding_function=self._embedding_function
+                embedding_function=self._embedding_function,
+                metadata={"hnsw:space": "cosine"}  # Используем cosine similarity
             )
             
             # Индексируем товары в временную коллекцию
@@ -123,10 +180,11 @@ class CatalogSearchService(BaseSearchService):
             except Exception:
                 pass  # Основная коллекция не существует
             
-            # Пересоздаем основную коллекцию
+            # Пересоздаем основную коллекцию с cosine similarity
             main_collection = self._client.create_collection(
                 name=self.COLLECTION_NAME,
-                embedding_function=self._embedding_function
+                embedding_function=self._embedding_function,
+                metadata={"hnsw:space": "cosine"}  # Используем cosine similarity
             )
             
             # Копируем данные из временной в основную
@@ -200,7 +258,8 @@ class CatalogSearchService(BaseSearchService):
                         metadata = metadatas[i] if i < len(metadatas) else {}
                         distance = distances[i] if i < len(distances) else 1.0
                         
-                        # Преобразуем distance в score (чем меньше distance, тем больше score)
+                        # Преобразуем cosine distance в score 
+                        # Для cosine: distance = 1 - similarity, поэтому score = 1 - distance
                         score = max(0.0, 1.0 - distance)
                         
                         # Создаем объект Product из метаданных
@@ -210,7 +269,9 @@ class CatalogSearchService(BaseSearchService):
                             section_name_2=metadata.get("section_name_2", ""),
                             product_name=metadata.get("product_name", ""),
                             description=metadata.get("description", ""),
-                            category=metadata.get("category", ""),
+                            category_1=metadata.get("category_1", ""),
+                            category_2=metadata.get("category_2", ""),
+                            category_3=metadata.get("category_3", ""),
                             article=metadata.get("article", ""),
                             photo_url=metadata.get("photo_url"),
                             page_url=metadata.get("page_url")
@@ -223,11 +284,120 @@ class CatalogSearchService(BaseSearchService):
                         continue
             
             self._logger.debug(f"Найдено {len(search_results)} результатов для запроса: {query}")
-            return search_results
+            
+            # Применяем улучшения: boost и фильтрацию
+            improved_results = self._improve_search_results(search_results, query)
+            
+            self._logger.debug(f"После улучшений: {len(improved_results)} результатов")
+            return improved_results
             
         except Exception as e:
             self._logger.error(f"Ошибка поиска: {e}")
             return []
+    
+    def _improve_search_results(self, results: list[SearchResult], query: str) -> list[SearchResult]:
+        """
+        Улучшает результаты поиска: добавляет boost за совпадения в названии и фильтрует по score.
+        
+        Args:
+            results: Исходные результаты поиска
+            query: Поисковый запрос
+            
+        Returns:
+            Улучшенные и отфильтрованные результаты
+        """
+        if not results:
+            return results
+            
+        improved_results = []
+        query_words = set(word.lower().strip() for word in query.split() if len(word.strip()) > 1)
+        
+        for result in results:
+            # Применяем boost за совпадения в названии
+            boosted_score = self._calculate_name_boost(result, query_words)
+            
+            # Применяем фильтр по минимальному score
+            if boosted_score >= settings.search_min_score:
+                # Создаем новый результат с улучшенным score
+                improved_result = SearchResult(
+                    product=result.product,
+                    score=boosted_score
+                )
+                improved_results.append(improved_result)
+        
+        # Сортируем по убыванию score
+        improved_results.sort(key=lambda x: x.score, reverse=True)
+        
+        # Ограничиваем количество результатов согласно настройкам
+        max_results = settings.search_max_results
+        if len(improved_results) > max_results:
+            improved_results = improved_results[:max_results]
+            self._logger.debug(f"Ограничено до {max_results} результатов")
+        
+        return improved_results
+    
+    def _calculate_name_boost(self, result: SearchResult, query_words: set[str]) -> float:
+        """
+        Рассчитывает boost за совпадения слов запроса в названии и артикуле товара.
+        
+        Args:
+            result: Результат поиска
+            query_words: Слова поискового запроса (в нижнем регистре)
+            
+        Returns:
+            Улучшенный score
+        """
+        base_score = result.score
+        product_name = result.product.product_name.lower()
+        product_article = result.product.article.lower() if result.product.article else ""
+        
+        total_boost = 0.0
+        
+        # 1. Boost за совпадения в названии товара
+        name_matches = 0
+        for word in query_words:
+            if word in product_name:
+                name_matches += 1
+        
+        if name_matches > 0 and len(query_words) > 0:
+            name_boost_factor = name_matches / len(query_words)
+            name_boost = settings.search_name_boost * name_boost_factor
+            total_boost += name_boost
+            
+            self._logger.debug(
+                f"Name boost для '{result.product.product_name}': "
+                f"+{name_boost:.3f} ({name_matches}/{len(query_words)} совпадений в названии)"
+            )
+        
+        # 2. Boost за совпадения в артикуле (более высокий приоритет)
+        if product_article:
+            article_matches = 0
+            for word in query_words:
+                if word in product_article:
+                    article_matches += 1
+            
+            if article_matches > 0 and len(query_words) > 0:
+                article_boost_factor = article_matches / len(query_words)
+                article_boost = settings.search_article_boost * article_boost_factor
+                total_boost += article_boost
+                
+                self._logger.debug(
+                    f"Article boost для '{result.product.article}': "
+                    f"+{article_boost:.3f} ({article_matches}/{len(query_words)} совпадений в артикуле)"
+                )
+        
+        if total_boost > 0:
+            # Ограничиваем итоговый score значением 1.0
+            boosted_score = min(1.0, base_score + total_boost)
+            
+            self._logger.debug(
+                f"Итоговый boost для '{result.product.product_name}': "
+                f"{base_score:.3f} + {total_boost:.3f} = {boosted_score:.3f}"
+            )
+            
+            return boosted_score
+        
+        return base_score
     
     async def get_categories(self) -> list[str]:
         """
@@ -247,12 +417,13 @@ class CatalogSearchService(BaseSearchService):
             if not results["metadatas"]:
                 return []
             
-            # Извлекаем уникальные категории
+            # Извлекаем уникальные категории (из всех трех уровней)
             categories = set()
             for metadata in results["metadatas"]:
-                category = metadata.get("category")
-                if category:
-                    categories.add(category)
+                for level in ["category_1", "category_2", "category_3"]:
+                    category = metadata.get(level)
+                    if category and category.strip():
+                        categories.add(category.strip())
             
             return sorted(list(categories))
             
@@ -361,7 +532,9 @@ class CatalogSearchService(BaseSearchService):
                     "section_name_2": product.section_name_2,
                     "product_name": product.product_name,
                     "description": product.description,
-                    "category": product.category,
+                    "category_1": product.category_1,
+                    "category_2": product.category_2,
+                    "category_3": product.category_3,
                     "article": product.article
                 }
                 

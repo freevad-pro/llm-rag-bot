@@ -167,21 +167,63 @@ class SmokeTestRunner:
         try:
             catalog_service = CatalogSearchService()
             
-            # Поиск по тестовому запросу
-            results = await catalog_service.search_products("насос", k=5)
+            # Проверяем что каталог проиндексирован
+            is_indexed = await catalog_service.is_indexed()
+            if not is_indexed:
+                # Каталог не проиндексирован - это нормально для smoke теста
+                # Просто проверяем что метод search_products работает и возвращает пустой список
+                results = await catalog_service.search_products("тест", k=5)
+                if not isinstance(results, list):
+                    raise SmokeTestError(f"Catalog search returned invalid type: {type(results)}")
+                if len(results) != 0:
+                    raise SmokeTestError("Expected empty results for non-indexed catalog")
+                return  # Тест пройден - функционал работает
             
-            # Проверяем что метод возвращает список (может быть пустой если нет данных)
-            if not isinstance(results, list):
-                raise SmokeTestError(f"Catalog search returned invalid type: {type(results)}")
+            # Каталог проиндексирован - тестируем поиск
+            # Попробуем несколько разных запросов
+            test_queries = ["dell", "болт", "мультиметр", "тест"]
             
-            # Если есть результаты, проверяем их структуру
-            if results and len(results) > 0:
-                first_result = results[0]
-                # Проверяем что результат имеет базовые атрибуты
-                if not hasattr(first_result, '__dict__'):
-                    raise SmokeTestError("Search result is not an object with attributes")
+            any_results_found = False
+            for query in test_queries:
+                results = await catalog_service.search_products(query, k=5)
+                
+                # Проверяем что метод возвращает список
+                if not isinstance(results, list):
+                    raise SmokeTestError(f"Catalog search returned invalid type: {type(results)}")
+                
+                # Если есть результаты, проверяем их структуру
+                if results and len(results) > 0:
+                    any_results_found = True
+                    first_result = results[0]
+                    
+                    # Проверяем что результат имеет нужные атрибуты
+                    if not hasattr(first_result, 'product'):
+                        raise SmokeTestError("Search result missing 'product' attribute")
+                    if not hasattr(first_result, 'score'):
+                        raise SmokeTestError("Search result missing 'score' attribute")
+                    if not hasattr(first_result.product, 'product_name'):
+                        raise SmokeTestError("Product missing 'product_name' attribute")
+                    if not hasattr(first_result.product, 'get_full_category'):
+                        raise SmokeTestError("Product missing 'get_full_category' method")
+                    
+                    # Проверяем новую структуру категорий
+                    if not hasattr(first_result.product, 'category_1'):
+                        raise SmokeTestError("Product missing 'category_1' attribute (new structure)")
+                    if not hasattr(first_result.product, 'category_2'):
+                        raise SmokeTestError("Product missing 'category_2' attribute (new structure)")
+                    if not hasattr(first_result.product, 'category_3'):
+                        raise SmokeTestError("Product missing 'category_3' attribute (new structure)")
+                        
+                    # Проверяем что метод get_full_category работает
+                    full_category = first_result.product.get_full_category()
+                    if not isinstance(full_category, str):
+                        raise SmokeTestError("get_full_category() should return string")
+                    
+                    break  # Найден валидный результат, тест пройден
             
-            # Тест прошел - поиск работает (независимо от наличия данных)
+            # Если каталог проиндексирован, но ни один запрос не дал результатов - 
+            # это может быть нормально из-за высокого фильтра score (0.45)
+            # Главное что search_products работает без ошибок
                     
         except Exception as e:
             raise SmokeTestError(f"Catalog search failed: {e}")
@@ -292,9 +334,14 @@ class SmokeTestRunner:
     async def cleanup_test_data_by_prefix(self, session: AsyncSession):
         """Очищает тестовые данные по префиксам (дополнительная защита)"""
         try:
-            # Удаляем пользователей с тестовыми именами
+            # Сначала удаляем связанные данные (leads), затем пользователей
+            # Удаляем лиды тестовых пользователей
             await session.execute(
-                delete(User).where(User.username.like(f"{self.TEST_USER_PREFIX}%"))
+                delete(LeadModel).where(
+                    LeadModel.user_id.in_(
+                        select(User.id).where(User.username.like(f"{self.TEST_USER_PREFIX}%"))
+                    )
+                )
             )
             
             # Удаляем тестовые диалоги 
@@ -302,6 +349,11 @@ class SmokeTestRunner:
                 delete(Conversation).where(
                     Conversation.chat_id >= self.TEST_CHAT_ID_BASE
                 )
+            )
+            
+            # Теперь можно безопасно удалить пользователей
+            await session.execute(
+                delete(User).where(User.username.like(f"{self.TEST_USER_PREFIX}%"))
             )
             
             # Удаляем старые тестовые данные (> 1 часа)

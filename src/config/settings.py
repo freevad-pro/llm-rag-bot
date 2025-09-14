@@ -4,6 +4,13 @@
 import os
 from typing import List
 
+# Отключаем телеметрию ChromaDB через переменные окружения
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
+os.environ.setdefault("ALLOW_RESET", "true")
+# Дополнительное отключение posthog (система телеметрии ChromaDB)
+os.environ.setdefault("POSTHOG_DISABLED", "true")
+os.environ.setdefault("CHROMA_TELEMETRY_DISABLED", "true")
+
 
 class Settings:
     """Основные настройки приложения"""
@@ -49,6 +56,12 @@ class Settings:
         self.smtp_user: str = os.getenv("SMTP_USER", "")
         self.smtp_password: str = os.getenv("SMTP_PASSWORD", "")
         self.manager_emails: str = os.getenv("MANAGER_EMAILS", "")
+        
+        # Настройки поиска
+        self.search_min_score: float = float(os.getenv("SEARCH_MIN_SCORE", "0.3"))
+        self.search_name_boost: float = float(os.getenv("SEARCH_NAME_BOOST", "0.2"))
+        self.search_article_boost: float = float(os.getenv("SEARCH_ARTICLE_BOOST", "0.3"))
+        self.search_max_results: int = int(os.getenv("SEARCH_MAX_RESULTS", "10"))
     
     @property
     def admin_telegram_ids_list(self) -> List[int]:

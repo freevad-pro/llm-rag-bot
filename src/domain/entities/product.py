@@ -13,7 +13,7 @@ class Product:
     Сущность товара из каталога.
     
     Поля соответствуют структуре Excel файла из @product_idea.md:
-    - Обязательные: id, section_name_1, section_name_2, product_name, description, category, article
+    - Обязательные: id, section_name_1, section_name_2, product_name, description, category_1, category_2, category_3, article
     - Опциональные: photo_url, page_url
     """
     
@@ -23,7 +23,9 @@ class Product:
     section_name_2: str  # наименование подраздела  
     product_name: str    # наименование товара
     description: str     # описание
-    category: str        # категория
+    category_1: str      # категория 1-го уровня
+    category_2: str      # категория 2-го уровня  
+    category_3: str      # категория 3-го уровня
     article: str         # артикул
     
     # Опциональные поля
@@ -40,7 +42,9 @@ class Product:
             self.description,
             self.section_name_1,
             self.section_name_2,
-            self.category,
+            self.category_1,
+            self.category_2,
+            self.category_3,
             self.article
         ]
         return " ".join(part for part in search_parts if part.strip())
@@ -50,8 +54,12 @@ class Product:
         return self.product_name
     
     def get_full_category(self) -> str:
-        """Возвращает полный путь категории: раздел > подраздел > категория."""
-        return f"{self.section_name_1} > {self.section_name_2} > {self.category}"
+        """
+        Возвращает полный путь категорий.
+        Например: "Электроника > Компьютеры > Ноутбуки"
+        """
+        categories = [self.category_1, self.category_2, self.category_3]
+        return " > ".join(cat for cat in categories if cat.strip())
 
 
 @dataclass 

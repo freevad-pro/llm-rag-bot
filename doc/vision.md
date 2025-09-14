@@ -72,17 +72,24 @@ src/
 class CatalogSearchService:
     """
     Использует:
-    - HuggingFaceEmbeddings: paraphrase-multilingual-MiniLM-L12-v2
-    - Chroma persist_directory: /app/data/chroma
+    - SentenceTransformers: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+    - Chroma persist_directory: /app/data/chroma (cosine similarity)
     - Blue-green deployment при переиндексации
+    - Boost система: приоритет артикулам и названиям
+    - Фильтрация по минимальному score
     """
     
     async def index_catalog(excel_path: str) -> None:
         # Excel → Documents → Chroma
-        # Metadata: id, name, category, photo_url
+        # Metadata: id, name, category_1, category_2, category_3, article, photo_url
         
-    async def search_products(query: str, category: str = None, k: int = 10):
-        # similarity_search с опциональным фильтром
+    async def search_products(query: str, k: int = 10) -> list[SearchResult]:
+        # Семантический поиск с boost и фильтрацией
+        # 1. Векторный поиск через Chroma (cosine similarity)
+        # 2. Boost за совпадения в названии (SEARCH_NAME_BOOST)
+        # 3. Boost за совпадения в артикуле (SEARCH_ARTICLE_BOOST)
+        # 4. Фильтрация по минимальному score (SEARCH_MIN_SCORE)
+        # 5. Ограничение результатов (SEARCH_MAX_RESULTS)
 ```
 
 ### 4.2 Классификация и маршрутизация запросов
@@ -311,8 +318,10 @@ services:
 3. **Контекст LLM** - максимум 20 последних сообщений
 4. **Язык ответа** - ВСЕГДА на языке пользователя (автоматически)
 5. **Каталог** - товары только в Chroma, услуги только в PostgreSQL
-6. **Уведомления** - отдельно Email и Telegram с изоляцией каналов
-7. **Индексация** - blue-green deployment без простоя
+6. **Структура категорий** - обязательно три уровня (category_1, category_2, category_3)
+7. **Поиск качество** - минимальный score 45%, boost по артикулу выше чем по названию
+8. **Уведомления** - отдельно Email и Telegram с изоляцией каналов
+9. **Индексация** - blue-green deployment без простоя
 
 ---
 
@@ -346,6 +355,12 @@ MANAGER_TELEGRAM_CHAT_ID=-100xxx
 # Пути
 CHROMA_PERSIST_DIR=/app/data/chroma
 UPLOAD_DIR=/app/data/uploads
+
+# Настройки поиска по каталогу
+SEARCH_MIN_SCORE=0.45          # Минимальный score для показа результатов (0.0-1.0)
+SEARCH_NAME_BOOST=0.2          # Boost за совпадения в названии товара (0.0-0.5)
+SEARCH_ARTICLE_BOOST=0.3       # Boost за совпадения в артикуле (0.0-0.5)
+SEARCH_MAX_RESULTS=10          # Максимальное количество результатов поиска
 ```
 
 ---

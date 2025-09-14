@@ -26,8 +26,11 @@ sqlalchemy = "^2.0.23"
 asyncpg = "^0.29.0"
 alembic = "^1.13.1"
 
-# Vector Search
-chromadb = "^0.4.18"
+# Vector Search  
+chromadb = "^0.4.18"  # Стабильная версия
+
+# Sentence-transformers (автоматически установит PyTorch)
+sentence-transformers = "^2.2.2"
 
 # Data Processing
 pandas = "^2.1.4"
