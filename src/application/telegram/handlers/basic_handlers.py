@@ -276,3 +276,37 @@ async def callback_contact(callback_query, session: AsyncSession):
     })
     
     await handle_contact(fake_message, session)
+
+
+@router.callback_query(F.data == "main_menu")
+async def callback_main_menu(callback_query, session: AsyncSession):
+    """Обработчик callback для кнопки Главное меню"""
+    await hybrid_logger.info(f"🔘 Обработчик callback_main_menu вызван для пользователя {callback_query.from_user.id}")
+    await callback_query.answer("Возврат в главное меню...")
+    
+    # Вызываем обработчик start
+    fake_message = type('obj', (object,), {
+        'chat': callback_query.message.chat,
+        'from_user': callback_query.from_user,
+        'text': '/start',
+        'answer': callback_query.message.edit_text
+    })
+    
+    await handle_start(fake_message, session)
+
+
+@router.callback_query(F.data == "leave_contacts")
+async def callback_leave_contacts(callback_query, session: AsyncSession):
+    """Обработчик callback для кнопки Оставить контакты"""
+    await hybrid_logger.info(f"🔘 Обработчик callback_leave_contacts вызван для пользователя {callback_query.from_user.id}")
+    await callback_query.answer("Переход к форме контактов...")
+    
+    # Вызываем обработчик contact для создания заявки
+    fake_message = type('obj', (object,), {
+        'chat': callback_query.message.chat,
+        'from_user': callback_query.from_user,
+        'text': '/contact',
+        'answer': callback_query.message.edit_text
+    })
+    
+    await handle_contact(fake_message, session)

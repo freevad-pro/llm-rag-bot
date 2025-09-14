@@ -247,24 +247,18 @@ class LeadService:
                 Conversation.started_at >= cutoff_time - timedelta(hours=24)  # В последние 24 часа
             ).group_by(Conversation.user_id).subquery()
             
-            # Пользователи без недавних лидов
-            # Проверяем по telegram_user_id для избежания дубликатов при перезапуске
+            # Пользователи без недавних лидов  
+            # Простая логика: проверяем есть ли недавние лиды для пользователя
             query = select(
                 subquery.c.user_id,
                 subquery.c.last_activity
-            ).select_from(
-                subquery.join(User, User.id == subquery.c.user_id)
             ).where(
                 and_(
                     subquery.c.last_activity <= cutoff_time,
-                    # Проверяем что нет недавних лидов по telegram_user_id
-                    ~select(LeadModel.id).select_from(
-                        LeadModel.join(User, User.id == LeadModel.user_id)
-                    ).where(
+                    # Проверяем что нет недавних лидов для этого user_id
+                    ~select(LeadModel.id).where(
                         and_(
-                            User.telegram_user_id == (
-                                select(User.telegram_user_id).where(User.id == subquery.c.user_id)
-                            ),
+                            LeadModel.user_id == subquery.c.user_id,
                             LeadModel.created_at >= cutoff_time
                         )
                     ).exists()
@@ -291,6 +285,24 @@ class LeadService:
             user = result.scalar_one_or_none()
             
             if not user:
+                return None
+                
+            # Дополнительная проверка: есть ли уже лид для этого telegram_user_id
+            # Это предотвращает дубликаты при перезапуске бота
+            from datetime import timedelta
+            cutoff_time = datetime.utcnow() - timedelta(minutes=30)
+            
+            existing_lead_query = select(LeadModel.id).select_from(
+                LeadModel.join(User, User.id == LeadModel.user_id)
+            ).where(
+                and_(
+                    User.telegram_user_id == user.telegram_user_id,
+                    LeadModel.created_at >= cutoff_time
+                )
+            )
+            existing_result = await session.execute(existing_lead_query)
+            if existing_result.scalar_one_or_none():
+                # Уже есть недавний лид для этого telegram пользователя
                 return None
             
             # Определяем имя
