@@ -23,7 +23,7 @@ class InactiveUsersMonitor:
         lead_service: LeadService,
         notifier: TelegramNotifier,
         check_interval_minutes: int = 10,
-        inactivity_threshold_minutes: int = 30
+        inactivity_threshold_minutes: int = 120  # 2 часа вместо 30 минут
     ) -> None:
         """
         Инициализация монитора.

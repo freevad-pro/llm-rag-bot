@@ -249,20 +249,17 @@ class LeadService:
                 Conversation.started_at >= cutoff_time - timedelta(hours=24)  # В последние 24 часа
             ).group_by(Conversation.user_id).subquery()
             
-            # Пользователи без недавних лидов  
-            # Простая логика: проверяем есть ли недавние лиды для пользователя
+            # Пользователи БЕЗ ЛИДОВ ВООБЩЕ
+            # Если у пользователя уже есть хотя бы один лид - НЕ создаем новых автоматически
             query = select(
                 subquery.c.user_id,
                 subquery.c.last_activity
             ).where(
                 and_(
                     subquery.c.last_activity <= cutoff_time,
-                    # Проверяем что нет недавних лидов для этого user_id
+                    # Проверяем что у пользователя НЕТ ЛИДОВ ВООБЩЕ
                     ~select(LeadModel.id).where(
-                        and_(
-                            LeadModel.user_id == subquery.c.user_id,
-                            LeadModel.created_at >= cutoff_time
-                        )
+                        LeadModel.user_id == subquery.c.user_id
                     ).exists()
                 )
             )
@@ -289,22 +286,14 @@ class LeadService:
             if not user:
                 return None
                 
-            # Дополнительная проверка: есть ли уже лид для этого telegram_user_id
-            # Это предотвращает дубликаты при перезапуске бота
-            from datetime import timedelta
-            cutoff_time = datetime.utcnow() - timedelta(minutes=30)
-            
-            existing_lead_query = select(LeadModel.id).select_from(
-                LeadModel.__table__.join(User.__table__, User.id == LeadModel.user_id)
-            ).where(
-                and_(
-                    User.telegram_user_id == user.telegram_user_id,
-                    LeadModel.created_at >= cutoff_time
-                )
+            # Дополнительная проверка: есть ли уже ЛЮБОЙ лид для этого пользователя
+            # Если у пользователя уже есть лид - НЕ создаем новых автоматически НИКОГДА
+            existing_lead_query = select(LeadModel.id).where(
+                LeadModel.user_id == user.id
             )
             existing_result = await session.execute(existing_lead_query)
             if existing_result.scalar_one_or_none():
-                # Уже есть недавний лид для этого telegram пользователя
+                # Уже есть лид для этого пользователя - больше НЕ создаем автоматически
                 return None
             
             # Определяем имя
