@@ -1,4 +1,9 @@
 # Production Docker Compose конфигурация
+# Архитектура: 3 контейнера
+# - app: FastAPI сервер (API, админка, health checks)
+# - bot: Telegram бот (отдельный процесс)
+# - postgres: База данных
+#
 # Отличия от dev версии:
 # - Нет volume для hot reload кода
 # - Переменные окружения из внешнего .env файла
@@ -17,6 +22,8 @@ services:
       # Принудительная установка критичных переменных (приоритет над системными)
       DEBUG: "false"
       ENVIRONMENT: "production"
+      # Отключаем Telegram бота в FastAPI контейнере (работает только в отдельном bot контейнере)
+      DISABLE_TELEGRAM_BOT: "true"
     depends_on:
       postgres:
         condition: service_healthy

@@ -58,6 +58,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Test environment with real API keys (do not commit!)
+env.test
+
 # IDE
 .vscode/
 .idea/

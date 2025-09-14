@@ -27,7 +27,7 @@ AI-консультант для KeTai Consulting - специализирова
 - **PostgreSQL 15** (пользователи, лиды, услуги, промпты)
 - **OpenAI API** (LLM + embeddings, оптимизировано)
 - **YandexGPT** (альтернативный LLM для РФ)
-- **Docker Compose** (контейнеризация и деплой)
+- **Docker Compose** (контейнеризация: 3 контейнера)
 
 ### Структура проекта
 ```
@@ -36,6 +36,18 @@ src/
 ├── application/      # Telegram + Web handlers
 ├── infrastructure/   # База данных, CRM, LLM
 └── presentation/     # Админ-панель
+```
+
+### Архитектура контейнеров
+```
+Production (3 контейнера):
+├── app      # FastAPI сервер (API, админка, health checks)
+├── bot      # Telegram бот (отдельный процесс)
+└── postgres # База данных
+
+Переменные разделения:
+- app: DISABLE_TELEGRAM_BOT=true
+- bot: python -m src.main bot
 ```
 
 ---

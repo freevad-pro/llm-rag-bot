@@ -1,4 +1,7 @@
-# Удаляем устаревший параметр version
+# Development Docker Compose
+# Архитектура: 2 контейнера (упрощенная для разработки)
+# - app: FastAPI + Telegram бот в одном контейнере (hot reload)
+# - postgres: база данных
 
 services:
   app:
@@ -11,6 +14,8 @@ services:
       - LOG_LEVEL=INFO
       - OPENAI_API_KEY=sk-test-key-for-development-only
       - DEFAULT_LLM_PROVIDER=yandex
+      # В development режиме бот НЕ отключается (все в одном контейнере)
+      - DISABLE_TELEGRAM_BOT=false
       # Development пароль: "password" (НЕ используйте в production!)
     depends_on:
       - postgres

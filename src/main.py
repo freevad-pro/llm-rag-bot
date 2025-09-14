@@ -30,10 +30,12 @@ async def lifespan(app: FastAPI):
         await create_tables()
         await hybrid_logger.info("База данных инициализирована")
         
-        # Запуск Telegram бота если токен настроен
-        if settings.bot_token:
+        # Запуск Telegram бота если токен настроен И бот не отключен
+        if settings.bot_token and not settings.disable_telegram_bot:
             bot_task = asyncio.create_task(start_bot())
             await hybrid_logger.info("Telegram бот запущен в фоновом режиме")
+        elif settings.disable_telegram_bot:
+            await hybrid_logger.info("Telegram бот отключен через DISABLE_TELEGRAM_BOT")
         else:
             await hybrid_logger.warning("BOT_TOKEN не настроен, Telegram бот не запущен")
         

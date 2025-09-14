@@ -15,6 +15,9 @@ class Settings:
         self.debug: bool = os.getenv("DEBUG", "false").lower() == "true"
         self.log_level: str = os.getenv("LOG_LEVEL", "INFO")
         
+        # Режим работы контейнеров
+        self.disable_telegram_bot: bool = os.getenv("DISABLE_TELEGRAM_BOT", "false").lower() == "true"
+        
         # LLM
         self.default_llm_provider: str = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
         self.openai_api_key: str = os.getenv("OPENAI_API_KEY", "")

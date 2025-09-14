@@ -1,4 +1,9 @@
 # Docker Compose для локального тестирования
+# Архитектура: 3 контейнера (как в production)
+# - app-test: FastAPI сервер (порт 8001, бот отключен)
+# - bot-test: Telegram бот (отдельный процесс)
+# - postgres-test: тестовая база данных
+# 
 # Отличия от production:
 # - Используются тестовые порты
 # - Включены volume для hot reload
@@ -19,6 +24,8 @@ services:
     environment:
       # Переопределяем для Docker сети
       DATABASE_URL: "postgresql+asyncpg://test_user:test_pass@postgres-test:5432/test_catalog_db"
+      # Отключаем Telegram бота в FastAPI контейнере (работает только в bot-test)
+      DISABLE_TELEGRAM_BOT: "true"
     depends_on:
       postgres-test:
         condition: service_healthy
@@ -44,14 +51,15 @@ services:
       context: .
       dockerfile: Dockerfile
     command: python -m src.main bot
+    env_file:
+      - env.test
     environment:
+      # Переопределяем для Docker сети и тестового режима
       DEBUG: "true"
       ENVIRONMENT: "test"
       DATABASE_URL: "postgresql+asyncpg://test_user:test_pass@postgres-test:5432/test_catalog_db"
-      BOT_TOKEN: "test_bot_token_for_local_testing"
-      DEFAULT_LLM_PROVIDER: "test"
-      MANAGER_TELEGRAM_CHAT_ID: ""
-      ADMIN_TELEGRAM_IDS: ""
+      # Бот НЕ отключается в bot-test контейнере
+      DISABLE_TELEGRAM_BOT: "false"
     depends_on:
       postgres-test:
         condition: service_healthy

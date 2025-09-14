@@ -251,15 +251,21 @@ class LeadCreateRequest(BaseModel):
 
 ```
 VPS структура:
-- Docker контейнер #1: App (обновляется при деплое)
-- Docker контейнер #2: PostgreSQL (никогда не трогается)
+- Docker контейнер #1: App (FastAPI сервер - API, админка, health checks)
+- Docker контейнер #2: Bot (Telegram бот - отдельный процесс)
+- Docker контейнер #3: PostgreSQL (никогда не трогается)
 - Папка на диске: /data/persistent/chroma (векторная БД)
 
 При деплое:
 1. git pull
-2. docker-compose build app
-3. docker-compose up -d app --no-deps
+2. docker-compose build app bot
+3. docker-compose up -d app bot --no-deps
 Данные остаются на месте!
+
+Разделение контейнеров:
+- app: DISABLE_TELEGRAM_BOT=true (только FastAPI)
+- bot: python -m src.main bot (только Telegram бот)
+- postgres: изолированная база данных
 ```
 
 ### Docker volumes
@@ -317,6 +323,9 @@ services:
 DATABASE_URL=postgresql://user:pass@postgres:5432/catalog_db
 BOT_TOKEN=xxx
 WEBHOOK_SECRET=xxx
+
+# Режим работы контейнеров
+DISABLE_TELEGRAM_BOT=false  # true для app контейнера, false для bot контейнера
 
 # LLM (по умолчанию, меняется через админку)
 DEFAULT_LLM_PROVIDER=openai
