@@ -1,0 +1,71 @@
+# Dockerfile для тестирования
+# Расширенная версия основного Dockerfile с дополнительными инструментами для тестирования
+
+FROM python:3.11-slim
+
+# Устанавливаем системные зависимости для тестирования
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Устанавливаем Poetry
+RUN pip install poetry
+
+# Отключаем создание виртуального окружения (используем системный Python в контейнере)
+RUN poetry config virtualenvs.create false
+
+# Копируем файлы зависимостей
+COPY pyproject.toml README.md ./
+
+# Устанавливаем только зависимости (без самого пакета)
+RUN poetry install --no-interaction --no-ansi --no-root
+
+# Копируем код приложения
+COPY . .
+
+# Устанавливаем проект
+RUN poetry install --no-interaction --no-ansi --only-root
+
+# Создаем директории для данных
+RUN mkdir -p /app/data/chroma /app/data/uploads /app/test-results /app/htmlcov
+
+# Устанавливаем переменные окружения для тестов
+ENV PYTHONPATH=/app
+ENV ENVIRONMENT=test
+ENV DEBUG=true
+
+# Создаем скрипт точки входа для тестов
+RUN echo '#!/bin/bash\n\
+if [ "$1" = "test" ]; then\n\
+    echo "🧪 Запуск тестов..."\n\
+    pytest "${@:2}"\n\
+elif [ "$1" = "test-watch" ]; then\n\
+    echo "👀 Запуск тестов в режиме наблюдения..."\n\
+    pytest-watch "${@:2}"\n\
+elif [ "$1" = "coverage" ]; then\n\
+    echo "📊 Запуск тестов с покрытием..."\n\
+    pytest --cov=src --cov-report=html --cov-report=term "${@:2}"\n\
+elif [ "$1" = "lint" ]; then\n\
+    echo "🔍 Проверка качества кода..."\n\
+    black --check src/ tests/ || echo "❌ Black check failed"\n\
+    isort --check-only src/ tests/ || echo "❌ isort check failed"\n\
+    flake8 src/ tests/ || echo "❌ flake8 check failed"\n\
+elif [ "$1" = "format" ]; then\n\
+    echo "✨ Форматирование кода..."\n\
+    black src/ tests/\n\
+    isort src/ tests/\n\
+elif [ "$1" = "shell" ]; then\n\
+    echo "🐚 Интерактивная оболочка..."\n\
+    /bin/bash\n\
+else\n\
+    echo "🚀 Запуск приложения..."\n\
+    exec "$@"\n\
+fi' > /app/entrypoint-test.sh && chmod +x /app/entrypoint-test.sh
+
+ENTRYPOINT ["/app/entrypoint-test.sh"]
+CMD ["python", "-m", "src.main"]

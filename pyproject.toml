@@ -43,14 +43,35 @@ pydantic-settings = "^2.1.0"
 
 # Utilities
 python-dotenv = "^1.0.0"
-numpy = "^1.25.0"
+numpy = "^1.26.0"
 
 [tool.poetry.group.dev.dependencies]
+# Testing framework
 pytest = "^7.4.3"
 pytest-asyncio = "^0.21.1"
+pytest-mock = "^3.12.0"
+pytest-cov = "^4.1.0"
+pytest-xdist = "^3.5.0"
+
+# Database testing
+pytest-postgresql = "^5.0.0"
+sqlalchemy-utils = "^0.41.1"
+aiosqlite = "^0.19.0"
+
+# HTTP testing
+httpx = "^0.25.2"
+respx = "^0.20.2"
+
+# Fixtures and factories
+factory-boy = "^3.3.0"
+faker = "^21.0.0"
+
+# Code quality
 black = "^23.11.0"
 isort = "^5.12.0"
 mypy = "^1.7.1"
+flake8 = "^7.0.0"
+pre-commit = "^3.6.0"
 
 [tool.black]
 line-length = 88
@@ -65,3 +86,53 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+# Основные настройки
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",                    # Verbose output
+    "--strict-markers",      # Строгая проверка маркеров
+    "--disable-warnings",    # Отключить предупреждения
+    "--tb=short",           # Короткий traceback
+    "--asyncio-mode=auto",  # Автоматический async режим
+]
+
+# Маркеры для категоризации тестов
+markers = [
+    "unit: Unit tests (fast)",
+    "integration: Integration tests (medium)",
+    "e2e: End-to-end tests (slow)", 
+    "db: Database tests",
+    "api: API tests",
+    "telegram: Telegram bot tests",
+    "llm: LLM provider tests",
+    "search: Search functionality tests",
+    "leads: Lead management tests",
+    "slow: Slow tests (> 1s)",
+]
+
+# Фильтры предупреждений
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/migrations/*", 
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

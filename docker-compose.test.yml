@@ -1,0 +1,143 @@
+# Docker Compose для локального тестирования
+# Отличия от production:
+# - Используются тестовые порты
+# - Включены volume для hot reload
+# - Отдельная тестовая БД
+# - Моки внешних сервисов
+# - Дополнительные инструменты для отладки
+
+services:
+  # Основное приложение для тестирования
+  app-test:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"  # Другой порт чтобы не конфликтовать с dev
+    env_file:
+      - env.test
+    environment:
+      # Переопределяем для Docker сети
+      DATABASE_URL: "postgresql+asyncpg://test_user:test_pass@postgres-test:5432/test_catalog_db"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    volumes:
+      # Hot reload для разработки
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./data/test_chroma:/app/data/chroma
+      - ./data/test_uploads:/app/data/uploads
+      - ./logs:/app/logs
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Telegram бот для тестирования
+  bot-test:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: python -m src.main bot
+    environment:
+      DEBUG: "true"
+      ENVIRONMENT: "test"
+      DATABASE_URL: "postgresql+asyncpg://test_user:test_pass@postgres-test:5432/test_catalog_db"
+      BOT_TOKEN: "test_bot_token_for_local_testing"
+      DEFAULT_LLM_PROVIDER: "test"
+      MANAGER_TELEGRAM_CHAT_ID: ""
+      ADMIN_TELEGRAM_IDS: ""
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./data/test_chroma:/app/data/chroma
+      - ./logs:/app/logs
+    networks:
+      - test-network
+
+  # Тестовая база данных PostgreSQL
+  postgres-test:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: test_catalog_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5433:5432"  # Другой порт для тестовой БД
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+      # Скрипт инициализации тестовых данных
+      - ./scripts/init_test_data.sql:/docker-entrypoint-initdb.d/init_test_data.sql
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_catalog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Сервис для запуска тестов
+  pytest-runner:
+    build: 
+      context: .
+      dockerfile: Dockerfile.test
+    env_file:
+      - env.test
+    environment:
+      ENVIRONMENT: "test"
+      DATABASE_URL: "postgresql+asyncpg://test_user:test_pass@postgres-test:5432/test_catalog_db"
+      # Переменные для pytest
+      PYTEST_CURRENT_TEST: "true"
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./htmlcov:/app/htmlcov  # Для отчетов покрытия
+      - ./test-results:/app/test-results  # Для результатов тестов
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    profiles:
+      - testing  # Запускается только при профиле testing
+
+  # Mock сервис для внешних API (LLM, CRM)
+  mock-services:
+    image: mockserver/mockserver:latest
+    ports:
+      - "1080:1080"  # MockServer UI
+    environment:
+      MOCKSERVER_PROPERTY_FILE: /config/mockserver.properties
+    volumes:
+      - ./tests/mocks:/config
+    networks:
+      - test-network
+    profiles:
+      - testing
+
+  # Redis для тестового кеширования (опционально)
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+    profiles:
+      - cache
+
+volumes:
+  test_postgres_data:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge

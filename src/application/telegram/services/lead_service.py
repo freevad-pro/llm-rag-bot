@@ -6,7 +6,7 @@ import re
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
@@ -28,7 +28,8 @@ class LeadCreateRequest(BaseModel):
     auto_created: bool = Field(False, description="Создан автоматически")
     lead_source: LeadSource = Field(LeadSource.TELEGRAM_BOT, description="Источник лида")
 
-    @validator('phone')
+    @field_validator('phone')
+    @classmethod
     def validate_phone(cls, v):
         """
         Улучшенная валидация телефона для российских и международных номеров.
@@ -83,7 +84,8 @@ class LeadCreateRequest(BaseModel):
         
         return phone_clean
 
-    @validator('telegram')
+    @field_validator('telegram')
+    @classmethod
     def validate_telegram(cls, v):
         """Валидация Telegram username"""
         if v is None:
@@ -104,7 +106,7 @@ class LeadCreateRequest(BaseModel):
 
     class Config:
         """Конфигурация Pydantic модели"""
-        use_enum_values = True
+        # use_enum_values = True  # Убираем чтобы enum оставались enum'ами
 
 
 class LeadService:
