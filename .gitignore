@@ -60,6 +60,7 @@ venv.bak/
 
 # Test environment with real API keys (do not commit!)
 env.test
+test.env
 
 # IDE
 .vscode/
