@@ -23,8 +23,9 @@ async def create_tables() -> None:
 async def check_db_connection() -> bool:
     """Проверка подключения к БД"""
     try:
+        from sqlalchemy import text
         async with engine.begin() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
         logger.error(f"Ошибка подключения к БД: {e}")
