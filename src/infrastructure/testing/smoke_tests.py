@@ -167,7 +167,7 @@ class SmokeTestRunner:
             catalog_service = CatalogSearchService()
             
             # Поиск по популярному запросу
-            results = await catalog_service.search("насос", limit=5)
+            results = await catalog_service.search_products("насос", limit=5)
             
             if not results:
                 raise SmokeTestError("Catalog search returned no results")
@@ -243,7 +243,7 @@ class SmokeTestRunner:
         # Этот тест можно расширить с помощью httpx для реальных HTTP запросов
         # Пока проверяем что основные модули импортируются
         try:
-            from src.application.web import app  # Если есть FastAPI app
+            from src.main import app  # FastAPI приложение
             from src.application.telegram.bot import dp  # Если есть Telegram dispatcher
             
             # Простая проверка что модули загружаются
