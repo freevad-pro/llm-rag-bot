@@ -42,6 +42,13 @@ class LeadHandlers:
     
     def _register_handlers(self) -> None:
         """Регистрация всех обработчиков"""
+        
+        # Добавляем обработчик help для совместимости с lead_keyboards
+        self.router.callback_query.register(
+            self.handle_help_callback,
+            F.data == "help"
+        )
+        
         # Callback handlers
         self.router.callback_query.register(
             self.handle_contact_manager,
@@ -141,6 +148,34 @@ class LeadHandlers:
             
         except Exception as e:
             await hybrid_logger.error(f"Ошибка в handle_contact_manager: {e}")
+            await callback.answer("Произошла ошибка. Попробуйте позже.")
+
+    async def handle_help_callback(
+        self, 
+        callback: CallbackQuery, 
+        state: FSMContext,
+        session: AsyncSession
+    ) -> None:
+        """Обработчик кнопки помощи в lead_keyboards"""
+        try:
+            await hybrid_logger.info(f"🔘 LeadHandlers.handle_help_callback вызван для пользователя {callback.from_user.id}")
+            await callback.answer()
+            
+            # Вызываем базовую справку из basic_handlers
+            from .basic_handlers import handle_help
+            
+            # Создаем фейковое сообщение для совместимости
+            fake_message = type('obj', (object,), {
+                'chat': callback.message.chat,
+                'from_user': callback.from_user,
+                'text': '/help',
+                'answer': callback.message.edit_text
+            })
+            
+            await handle_help(fake_message, session)
+            
+        except Exception as e:
+            await hybrid_logger.error(f"Ошибка в handle_help_callback: {e}")
             await callback.answer("Произошла ошибка. Попробуйте позже.")
     
     async def handle_quick_contact(

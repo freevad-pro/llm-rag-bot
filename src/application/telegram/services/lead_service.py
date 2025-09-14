@@ -248,16 +248,23 @@ class LeadService:
             ).group_by(Conversation.user_id).subquery()
             
             # Пользователи без недавних лидов
+            # Проверяем по telegram_user_id для избежания дубликатов при перезапуске
             query = select(
                 subquery.c.user_id,
                 subquery.c.last_activity
+            ).select_from(
+                subquery.join(User, User.id == subquery.c.user_id)
             ).where(
                 and_(
                     subquery.c.last_activity <= cutoff_time,
-                    # Проверяем что нет недавних лидов
-                    ~select(LeadModel.id).where(
+                    # Проверяем что нет недавних лидов по telegram_user_id
+                    ~select(LeadModel.id).select_from(
+                        LeadModel.join(User, User.id == LeadModel.user_id)
+                    ).where(
                         and_(
-                            LeadModel.user_id == subquery.c.user_id,
+                            User.telegram_user_id == (
+                                select(User.telegram_user_id).where(User.id == subquery.c.user_id)
+                            ),
                             LeadModel.created_at >= cutoff_time
                         )
                     ).exists()
