@@ -15,7 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.config.database import get_session
 from src.infrastructure.database.models import User, Conversation, Message, Lead as LeadModel
 from src.infrastructure.llm.factory import llm_factory
-from src.infrastructure.search.catalog_service import CatalogService
+from src.infrastructure.search.catalog_service import CatalogSearchService
 from src.application.telegram.services.user_service import ensure_user_exists
 from src.application.telegram.services.message_service import get_or_create_conversation, save_message
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
@@ -45,6 +45,8 @@ class SmokeTestRunner:
         Returns:
             Dict с результатами всех тестов
         """
+        print("🔥 Запуск Smoke Tests...")
+        
         results = {
             "timestamp": datetime.utcnow().isoformat(),
             "total_tests": 0,
@@ -93,7 +95,10 @@ class SmokeTestRunner:
                 }
                 results["failed"] += 1
                 
-                self.logger.error(f"❌ {test_name}: FAILED - {e}")
+                # Выводим ошибку сразу на консоль И в логи
+                error_msg = f"❌ {test_name}: FAILED - {e}"
+                print(error_msg)  # Немедленный вывод на консоль
+                self.logger.error(error_msg)
         
         # Обязательная очистка данных
         await self.cleanup_all_test_data()
@@ -159,7 +164,7 @@ class SmokeTestRunner:
     async def test_catalog_search(self):
         """Тест поиска по каталогу"""
         try:
-            catalog_service = CatalogService()
+            catalog_service = CatalogSearchService()
             
             # Поиск по популярному запросу
             results = await catalog_service.search("насос", limit=5)
@@ -352,6 +357,10 @@ async def run_single_smoke_test(test_name: str) -> Dict[str, Any]:
     except Exception as e:
         end_time = datetime.utcnow()
         duration = (end_time - start_time).total_seconds()
+        
+        # Выводим ошибку сразу на консоль
+        error_msg = f"❌ {test_name}: FAILED - {e}"
+        print(error_msg)
         
         result = {
             "test": test_name,
