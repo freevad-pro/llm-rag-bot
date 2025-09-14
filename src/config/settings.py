@@ -39,9 +39,9 @@ class Settings:
         self.admin_telegram_ids: str = os.getenv("ADMIN_TELEGRAM_IDS", "")
         
         # Поиск и эмбеддинги
-        self.embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai or sentence-transformers
-        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-        self.embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "100"))
+        self.embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "sentence-transformers")  # openai or sentence-transformers
+        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+        self.embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
         
         # Пути
         self.chroma_persist_dir: str = os.getenv("CHROMA_PERSIST_DIR", "/app/data/chroma")
