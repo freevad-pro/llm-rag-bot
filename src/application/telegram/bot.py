@@ -38,7 +38,9 @@ async def create_bot() -> Bot:
 
 async def create_dispatcher(bot: Bot) -> Dispatcher:
     """Создание и настройка диспетчера"""
-    dp = Dispatcher()
+    # Отключаем телеметрию aiogram (исправляет ошибку capture())
+    dp = Dispatcher(disable_fsm=False)
+    dp["aiogram_disable_telemetry"] = True
     
     # Подключаем middleware для работы с БД
     dp.message.middleware(DatabaseMiddleware())

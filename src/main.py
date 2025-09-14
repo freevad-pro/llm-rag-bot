@@ -2,11 +2,15 @@
 Главный файл приложения FastAPI
 Health check endpoint и базовая структура
 """
+import os
 from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from datetime import datetime
 import asyncio
+
+# Отключаем телеметрию aiogram (исправляет ошибку capture())
+os.environ["AIOGRAM_DISABLE_TELEMETRY"] = "1"
 
 from src.config.settings import settings
 from src.infrastructure.database.connection import create_tables, get_db_health
