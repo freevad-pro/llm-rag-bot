@@ -153,8 +153,7 @@ class TelegramNotifier:
         
         # Техническая информация
         message += f"\n📊 <b>Источник:</b> {lead.lead_source.value}\n"
-        message += f"🆔 <b>Chat ID:</b> <code>{user_chat_id}</code>\n"
-        message += f"⏰ <b>Создан:</b> {self._format_datetime(lead.created_at)}"
+        message += f"⏰ <b>Создан:</b> {self._format_datetime_msk(lead.created_at)}"
         
         return message
     
@@ -163,6 +162,24 @@ class TelegramNotifier:
         if not dt:
             return "—"
         return dt.strftime("%d.%m.%Y %H:%M")
+
+    def _format_datetime_msk(self, dt) -> str:
+        """Форматирование даты и времени в московском часовом поясе"""
+        if not dt:
+            return "—"
+        
+        from datetime import timezone, timedelta
+        
+        # Московское время (UTC+3)
+        moscow_tz = timezone(timedelta(hours=3))
+        
+        # Если время в UTC, конвертируем в московское
+        if dt.tzinfo is None:
+            # Предполагаем что время в UTC
+            dt = dt.replace(tzinfo=timezone.utc)
+        
+        moscow_time = dt.astimezone(moscow_tz)
+        return moscow_time.strftime("%d.%m.%Y %H:%M МСК")
     
     def _get_current_time(self) -> str:
         """Получение текущего времени"""
