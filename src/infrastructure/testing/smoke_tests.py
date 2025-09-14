@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.config.database import get_async_session
+from src.config.database import get_session
 from src.infrastructure.database.models import User, Conversation, Message, Lead as LeadModel
 from src.infrastructure.llm.factory import create_llm_provider
 from src.infrastructure.search.catalog_service import CatalogService
@@ -105,7 +105,7 @@ class SmokeTestRunner:
     
     async def test_database_connection(self):
         """Тест подключения к базе данных"""
-        async with get_async_session() as session:
+        async with get_session() as session:
             # Простой SELECT запрос
             result = await session.execute(text("SELECT 1 as test_value"))
             value = result.scalar()
@@ -182,7 +182,7 @@ class SmokeTestRunner:
     
     async def test_user_creation(self):
         """Тест создания пользователя через сервис"""
-        async with get_async_session() as session:
+        async with get_session() as session:
             try:
                 test_chat_id = self.TEST_CHAT_ID_BASE + 2
                 test_telegram_id = self.TEST_CHAT_ID_BASE + 2
@@ -249,7 +249,7 @@ class SmokeTestRunner:
     
     async def cleanup_all_test_data(self):
         """Очищает все тестовые данные созданные в процессе тестирования"""
-        async with get_async_session() as session:
+        async with get_session() as session:
             try:
                 cleaned_count = 0
                 
