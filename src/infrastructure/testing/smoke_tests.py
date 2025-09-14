@@ -15,6 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.config.database import get_session
 from src.infrastructure.database.models import User, Conversation, Message, Lead as LeadModel
 from src.infrastructure.llm.factory import llm_factory
+from src.infrastructure.llm.providers.base import LLMMessage
 from src.infrastructure.search.catalog_service import CatalogSearchService
 from src.application.telegram.services.user_service import ensure_user_exists
 from src.application.telegram.services.message_service import get_or_create_conversation, save_message
@@ -148,7 +149,7 @@ class SmokeTestRunner:
                 # Простой тестовый запрос
                 test_prompt = "Скажи одно слово: привет"
                 response = await llm_provider.generate_response(
-                    messages=[{"role": "user", "content": test_prompt}],
+                    messages=[LLMMessage(role="user", content=test_prompt)],
                     max_tokens=10
                 )
                 
@@ -167,7 +168,7 @@ class SmokeTestRunner:
             catalog_service = CatalogSearchService()
             
             # Поиск по популярному запросу
-            results = await catalog_service.search_products("насос", limit=5)
+            results = await catalog_service.search_products("насос", k=5)
             
             if not results:
                 raise SmokeTestError("Catalog search returned no results")
@@ -244,11 +245,10 @@ class SmokeTestRunner:
         # Пока проверяем что основные модули импортируются
         try:
             from src.main import app  # FastAPI приложение
-            from src.application.telegram.bot import dp  # Если есть Telegram dispatcher
             
             # Простая проверка что модули загружаются
-            if not app and not dp:
-                raise SmokeTestError("API modules not loaded")
+            if not app:
+                raise SmokeTestError("FastAPI app not loaded")
                 
         except ImportError as e:
             raise SmokeTestError(f"API modules import failed: {e}")
