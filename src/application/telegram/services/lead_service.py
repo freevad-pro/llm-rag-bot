@@ -293,7 +293,7 @@ class LeadService:
             cutoff_time = datetime.utcnow() - timedelta(minutes=30)
             
             existing_lead_query = select(LeadModel.id).select_from(
-                LeadModel.join(User, User.id == LeadModel.user_id)
+                LeadModel.__table__.join(User.__table__, User.id == LeadModel.user_id)
             ).where(
                 and_(
                     User.telegram_user_id == user.telegram_user_id,
