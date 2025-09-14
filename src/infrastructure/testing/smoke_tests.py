@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.config.database import get_session
 from src.infrastructure.database.models import User, Conversation, Message, Lead as LeadModel
-from src.infrastructure.llm.factory import create_llm_provider
+from src.infrastructure.llm.factory import llm_factory
 from src.infrastructure.search.catalog_service import CatalogService
 from src.application.telegram.services.user_service import ensure_user_exists
 from src.application.telegram.services.message_service import get_or_create_conversation, save_message
@@ -137,20 +137,21 @@ class SmokeTestRunner:
     async def test_llm_provider(self):
         """Тест работы LLM провайдера"""
         try:
-            llm_provider = await create_llm_provider()
-            
-            # Простой тестовый запрос
-            test_prompt = "Скажи одно слово: привет"
-            response = await llm_provider.generate_response(
-                messages=[{"role": "user", "content": test_prompt}],
-                max_tokens=10
-            )
-            
-            if not response or len(response.strip()) == 0:
-                raise SmokeTestError("LLM returned empty response")
-            
-            if len(response) > 100:
-                raise SmokeTestError(f"LLM response too long: {len(response)} chars")
+            async with get_session() as session:
+                llm_provider = await llm_factory.get_active_provider(session)
+                
+                # Простой тестовый запрос
+                test_prompt = "Скажи одно слово: привет"
+                response = await llm_provider.generate_response(
+                    messages=[{"role": "user", "content": test_prompt}],
+                    max_tokens=10
+                )
+                
+                if not response or len(response.strip()) == 0:
+                    raise SmokeTestError("LLM returned empty response")
+                
+                if len(response) > 100:
+                    raise SmokeTestError(f"LLM response too long: {len(response)} chars")
                 
         except Exception as e:
             raise SmokeTestError(f"LLM provider failed: {e}")
