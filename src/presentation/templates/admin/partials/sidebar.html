@@ -1,0 +1,165 @@
+<!-- Боковое меню -->
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <div class="text-center pb-3 border-bottom">
+            <i class="bi bi-robot text-primary" style="font-size: 2rem;"></i>
+            <h6 class="mt-2 text-primary">KeTai Consulting</h6>
+            <small class="text-muted">{{ current_user.display_name }}</small>
+            <br>
+            <small class="badge bg-{{ 'danger' if current_user.is_admin else 'success' }}">
+                {{ 'Администратор' if current_user.is_admin else 'Менеджер' }}
+            </small>
+        </div>
+
+        <ul class="nav flex-column mt-3">
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.url.path == '/admin/' else '' }}" href="/admin/">
+                    <i class="bi bi-speedometer2"></i>
+                    Панель управления
+                </a>
+            </li>
+
+            <!-- Управление каталогом -->
+            {% if current_user.can_manage_catalog() %}
+            <li class="nav-item">
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Каталог</span>
+                </h6>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/catalog/upload">
+                    <i class="bi bi-upload"></i>
+                    Загрузить каталог
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/catalog/history">
+                    <i class="bi bi-clock-history"></i>
+                    История загрузок
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Контент -->
+            {% if current_user.can_edit_prompts() %}
+            <li class="nav-item">
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Контент</span>
+                </h6>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/prompts">
+                    <i class="bi bi-chat-quote"></i>
+                    Промпты LLM
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/services">
+                    <i class="bi bi-gear"></i>
+                    Услуги компании
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/categories">
+                    <i class="bi bi-tags"></i>
+                    Категории услуг
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/company-info">
+                    <i class="bi bi-building"></i>
+                    О компании
+                </a>
+            </li>
+            {% endif %}
+
+            {% if current_user.can_manage_services() %}
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/services">
+                    <i class="bi bi-gear"></i>
+                    Услуги компании
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Аналитика -->
+            {% if current_user.can_view_basic_stats() %}
+            <li class="nav-item">
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Аналитика</span>
+                </h6>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/stats">
+                    <i class="bi bi-graph-up"></i>
+                    Статистика диалогов
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/leads">
+                    <i class="bi bi-person-plus"></i>
+                    Управление лидами
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Система (только админ) -->
+            {% if current_user.is_admin %}
+            <li class="nav-item">
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Система</span>
+                </h6>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/users">
+                    <i class="bi bi-people"></i>
+                    Пользователи
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/logs">
+                    <i class="bi bi-journal-text"></i>
+                    Системные логи
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/database">
+                    <i class="bi bi-database"></i>
+                    База данных
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/settings">
+                    <i class="bi bi-gear"></i>
+                    Общие настройки
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/usage-statistics">
+                    <i class="bi bi-graph-up"></i>
+                    Статистика AI
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Профиль -->
+            <li class="nav-item">
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Профиль</span>
+                </h6>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/profile">
+                    <i class="bi bi-person"></i>
+                    Мой профиль
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-danger" href="/admin/logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Выйти
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>

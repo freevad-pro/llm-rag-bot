@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-robot text-primary" style="font-size: 3rem;"></i>
+                        <h4 class="mt-2">KeTai Consulting</h4>
+                        <p class="text-muted">Панель управления AI-агентом</p>
+                    </div>
+                    
+                    <div id="login-form">
+                        <div class="text-center">
+                            <p class="mb-3">Для входа в систему используйте Telegram:</p>
+                            
+                            <!-- Telegram Login Widget будет здесь -->
+                            <div id="telegram-login-widget" class="d-flex justify-content-center mb-3">
+                                <!-- Виджет будет загружен через JavaScript -->
+                            </div>
+                            
+                            <small class="text-muted">
+                                Доступ только для авторизованных сотрудников
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div id="login-error" class="alert alert-danger d-none" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span id="error-message"></span>
+                    </div>
+                    
+                    <div id="login-loading" class="text-center d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Проверка доступа...</p>
+                    </div>
+                </div>
+                
+                <div class="card-footer text-center text-muted">
+                    <small>
+                        <i class="bi bi-shield-check"></i>
+                        Безопасный вход через Telegram
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Telegram Login Widget Script
+window.onTelegramAuth = function(user) {
+    console.log('Telegram авторизация получена:', user);
+    
+    // Показываем индикатор загрузки
+    document.getElementById('login-form').classList.add('d-none');
+    document.getElementById('login-loading').classList.remove('d-none');
+    
+    // Подготавливаем данные для отправки
+    const formData = new FormData();
+    Object.keys(user).forEach(key => {
+        if (user[key] !== undefined && user[key] !== null) {
+            formData.append(key, user[key]);
+        }
+    });
+    
+    // Отправляем данные на сервер
+    fetch('/admin/auth/telegram', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Успешная авторизация - перенаправляем
+            window.location.href = data.redirect || '/admin/';
+        } else {
+            throw new Error(data.detail || 'Ошибка авторизации');
+        }
+    })
+    .catch(error => {
+        // Показываем ошибку
+        document.getElementById('login-loading').classList.add('d-none');
+        document.getElementById('login-form').classList.remove('d-none');
+        document.getElementById('error-message').textContent = error.message;
+        document.getElementById('login-error').classList.remove('d-none');
+        
+        // Автоматически скрываем ошибку через 5 секунд
+        setTimeout(() => {
+            document.getElementById('login-error').classList.add('d-none');
+        }, 5000);
+    });
+};
+
+// Загружаем Telegram Login Widget
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Инициализация Telegram Login Widget...');
+    console.log('Bot username:', '{{ bot_username }}');
+    
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', '{{ bot_username }}');
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-onauth', 'onTelegramAuth');
+    script.setAttribute('data-request-access', 'write');
+    
+    script.onload = function() {
+        console.log('Telegram Widget script загружен');
+    };
+    
+    script.onerror = function() {
+        console.error('Ошибка загрузки Telegram Widget script');
+    };
+    
+    document.getElementById('telegram-login-widget').appendChild(script);
+});
+</script>
+{% endblock %}

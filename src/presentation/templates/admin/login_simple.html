@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-robot text-primary" style="font-size: 3rem;"></i>
+                        <h4 class="mt-2">KeTai Consulting</h4>
+                        <p class="text-muted">Простой вход для тестирования</p>
+                    </div>
+                    
+                    {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post" action="/admin/login-simple">
+                        <div class="mb-3">
+                            <label for="telegram_id" class="form-label">Telegram ID</label>
+                            <input type="number" class="form-control" id="telegram_id" name="telegram_id" 
+                                   placeholder="Введите ваш Telegram ID" required>
+                            <div class="form-text">
+                                Используйте ID: <strong>209090309</strong> для тестирования
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-box-arrow-in-right"></i>
+                                Войти
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <a href="/admin/login" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-telegram"></i>
+                            Вход через Telegram Widget
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-footer text-center text-muted">
+                    <small>
+                        <i class="bi bi-shield-check"></i>
+                        Только для тестирования
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

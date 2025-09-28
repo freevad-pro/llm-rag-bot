@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Админ-панель{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-person-gear"></i> {{ page_title }}</h2>
+        <a href="/admin/users" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+
+    <!-- Сообщения -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ 'danger' if message.type == 'error' else message.type }} alert-dismissible fade show" role="alert">
+                {{ message.text }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- Основная информация -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-gear"></i> Редактирование пользователя
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/users/{{ user.id }}/edit">
+                        <div class="row">
+                            <!-- Имя пользователя -->
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">
+                                    <i class="bi bi-person"></i> Имя пользователя *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="username" 
+                                       name="username" 
+                                       required 
+                                       minlength="3"
+                                       maxlength="50"
+                                       value="{{ user.username }}"
+                                       placeholder="Введите имя пользователя">
+                                <div class="form-text">Минимум 3 символа, только латинские буквы, цифры и подчеркивания</div>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="bi bi-envelope"></i> Email адрес *
+                                </label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="email" 
+                                       name="email" 
+                                       required 
+                                       value="{{ user.email }}"
+                                       placeholder="user@example.com">
+                                <div class="form-text">Будет использоваться для восстановления пароля</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Роль -->
+                            <div class="col-md-6 mb-3">
+                                <label for="role" class="form-label">
+                                    <i class="bi bi-shield-check"></i> Роль *
+                                </label>
+                                <select class="form-select" id="role" name="role" required>
+                                    {% for role in roles %}
+                                        <option value="{{ role.value }}" {% if role == user.role %}selected{% endif %}>
+                                            {% if role.value == 'ADMIN' %}
+                                                Администратор
+                                            {% else %}
+                                                Менеджер
+                                            {% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    {% if user.id == current_user.id %}
+                                        <span class="text-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> 
+                                            Вы не можете понизить свою роль с администратора
+                                        </span>
+                                    {% else %}
+                                        <strong>Администратор:</strong> полный доступ ко всем функциям<br>
+                                        <strong>Менеджер:</strong> ограниченный доступ
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Статус -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">
+                                    <i class="bi bi-check-circle"></i> Статус
+                                </label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="is_active" 
+                                           name="is_active" 
+                                           {% if user.is_active %}checked{% endif %}
+                                           {% if user.id == current_user.id %}disabled{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        Пользователь активен
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    {% if user.id == current_user.id %}
+                                        <span class="text-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> 
+                                            Вы не можете заблокировать себя
+                                        </span>
+                                    {% else %}
+                                        Неактивные пользователи не смогут войти в систему
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="d-flex justify-content-between">
+                            <a href="/admin/users" class="btn btn-secondary">
+                                <i class="bi bi-x-lg"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> Сохранить изменения
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Дополнительные действия -->
+        <div class="col-lg-4">
+            <!-- Информация о пользователе -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> Информация
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">ID:</dt>
+                        <dd class="col-sm-8">{{ user.id }}</dd>
+                        
+                        <dt class="col-sm-4">Создан:</dt>
+                        <dd class="col-sm-8">
+                            {% if user.created_at %}
+                                {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Обновлен:</dt>
+                        <dd class="col-sm-8">
+                            {% if user.updated_at %}
+                                {{ user.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Статус:</dt>
+                        <dd class="col-sm-8">
+                            {% if user.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                            {% else %}
+                                <span class="badge bg-danger">Заблокирован</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Смена пароля -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-key"></i> Смена пароля
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/users/{{ user.id }}/change-password">
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">Новый пароль</label>
+                            <div class="input-group">
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="new_password" 
+                                       name="new_password" 
+                                       required 
+                                       minlength="8"
+                                       placeholder="Введите новый пароль">
+                                <button class="btn btn-outline-secondary" 
+                                        type="button" 
+                                        onclick="toggleNewPassword()">
+                                    <i class="bi bi-eye" id="new-password-icon"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Минимум 8 символов</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning btn-sm w-100">
+                            <i class="bi bi-key"></i> Изменить пароль
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Опасные действия -->
+            {% if user.id != current_user.id %}
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="bi bi-exclamation-triangle"></i> Опасная зона
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Переключить статус -->
+                        <form method="post" action="/admin/users/{{ user.id }}/toggle-status" class="mb-3">
+                            <button type="submit" 
+                                    class="btn btn-{{ 'warning' if user.is_active else 'success' }} btn-sm w-100"
+                                    onclick="return confirm('Вы уверены?')">
+                                <i class="bi bi-{{ 'lock' if user.is_active else 'unlock' }}"></i>
+                                {{ 'Заблокировать' if user.is_active else 'Активировать' }} пользователя
+                            </button>
+                        </form>
+                        
+                        <!-- Удалить пользователя -->
+                        <form method="post" action="/admin/users/{{ user.id }}/delete">
+                            <button type="submit" 
+                                    class="btn btn-danger btn-sm w-100"
+                                    onclick="return confirm('Вы действительно хотите удалить пользователя {{ user.username }}? Это действие нельзя отменить!')">
+                                <i class="bi bi-trash"></i> Удалить пользователя
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleNewPassword() {
+    const passwordInput = document.getElementById('new_password');
+    const passwordIcon = document.getElementById('new-password-icon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordIcon.className = 'bi bi-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        passwordIcon.className = 'bi bi-eye';
+    }
+}
+
+// Валидация формы
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('username');
+    
+    // Проверка имени пользователя
+    usernameInput.addEventListener('input', function() {
+        const username = this.value;
+        const regex = /^[a-zA-Z0-9_]+$/;
+        
+        if (username && !regex.test(username)) {
+            this.setCustomValidity('Только латинские буквы, цифры и подчеркивания');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+});
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.form-label {
+    font-weight: 600;
+}
+
+.form-text {
+    font-size: 0.875em;
+}
+
+.btn-outline-secondary {
+    border-color: #ced4da;
+}
+
+.input-group .btn {
+    z-index: 3;
+}
+
+dl.row dt {
+    font-weight: 600;
+}
+
+dl.row dd {
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}

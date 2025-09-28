@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">{{ page_title }}</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="d-none d-md-inline">Дашборд</span>
+                    </a>
+                    <a href="/admin/profile" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-person"></i>
+                        <span class="d-none d-md-inline">Профиль</span>
+                    </a>
+                    <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Выйти</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid mt-3">
+            {% if message %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <!-- Статистика -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-left-primary">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        Всего услуг
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ total_services }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-gear text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-success">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                        Активных
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ active_services }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-warning">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                        Категории
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ categories|length }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-tags text-warning" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-info">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                        Найдено
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ services|length }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-search text-info" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Поиск и фильтры -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel"></i>
+                        Поиск и фильтры
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="/admin/services/">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="search" class="form-label">Поиск</label>
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       value="{{ search }}" placeholder="Название, описание, ключевые слова...">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="category" class="form-label">Категория</label>
+                                <select class="form-select" id="category" name="category">
+                                    <option value="">Все категории</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {% if selected_category == cat.id|string %}selected{% endif %}>
+                                        {{ cat.display_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="active_only" name="active_only" 
+                                           {% if active_only %}checked{% endif %}>
+                                    <label class="form-check-label" for="active_only">
+                                        Только активные
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-search"></i> Найти
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Действия -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <a href="/admin/services/create" class="btn btn-success">
+                        <i class="bi bi-plus-circle"></i> Добавить услугу
+                    </a>
+                    <a href="/admin/services/" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Сбросить фильтры
+                    </a>
+                </div>
+            </div>
+
+            <!-- Список услуг -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Список услуг компании</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Название</th>
+                                    <th>Категория</th>
+                                    <th>Описание</th>
+                                    <th>Цена</th>
+                                    <th>Статус</th>
+                                    <th>Порядок</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in services %}
+                                <tr {% if not service.is_active %}class="table-secondary"{% endif %}>
+                                    <td>
+                                        <strong>{{ service.name }}</strong>
+                                        {% if service.keywords %}
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-tags"></i>
+                                            {{ service.keywords }}
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if service.category %}
+                                        <span class="badge bg-info">{{ service.category_display }}</span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ service.short_description }}</span>
+                                    </td>
+                                    <td>
+                                        {% if service.has_price_info %}
+                                        <span class="badge bg-success">{{ service.price_info }}</span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if service.is_active %}
+                                        <span class="badge bg-success">Активна</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Неактивна</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ service.sort_order }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="/admin/services/edit/{{ service.id }}" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <form method="post" action="/admin/services/toggle/{{ service.id }}" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-warning" 
+                                                        title="{% if service.is_active %}Деактивировать{% else %}Активировать{% endif %}">
+                                                    <i class="bi bi-{% if service.is_active %}pause{% else %}play{% endif %}"></i>
+                                                </button>
+                                            </form>
+                                            <form method="post" action="/admin/services/delete/{{ service.id }}" class="d-inline"
+                                                  onsubmit="return confirm('Вы уверены, что хотите удалить услугу \'{{ service.name }}\'?')">
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        {% if search or selected_category or active_only %}
+                                        Услуги не найдены по заданным критериям.
+                                        <a href="/admin/services/">Показать все услуги</a>
+                                        {% else %}
+                                        Услуги не найдены. <a href="/admin/services/create">Создайте первую услугу</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Функция для переключения sidebar на мобильных
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarMenu');
+        sidebar.classList.toggle('show');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar.classList.contains('show')) {
+            overlay.classList.add('show');
+        } else {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Скрываем sidebar при клике вне его на мобильных
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebarMenu');
+        const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
+</script>
+{% endblock %}

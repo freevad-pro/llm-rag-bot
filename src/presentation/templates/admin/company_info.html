@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">{{ page_title }}</h1>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i class="fas fa-upload"></i> Загрузить файл
+                    </button>
+                    {% if history|length > 1 %}
+                    <button type="button" class="btn btn-outline-danger" onclick="deleteAllOldVersions()">
+                        <i class="fas fa-trash-alt"></i> Удалить старые версии
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Уведомления -->
+            {% if request.query_params.get('success') == 'uploaded' %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> Файл успешно загружен и активирован!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% elif request.query_params.get('success') == 'old_versions_deleted' %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> Старые версии успешно удалены!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% elif request.query_params.get('info') == 'no_old_versions' %}
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-info-circle"></i> Нет старых версий для удаления.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            <!-- Текущая активная версия -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-file-word text-primary"></i> Текущая информация о компании
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if current_info %}
+                            <div class="row mb-3">
+                                <div class="col-sm-3"><strong>Файл:</strong></div>
+                                <div class="col-sm-9">{{ current_info.original_filename }}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-3"><strong>Версия:</strong></div>
+                                <div class="col-sm-9">
+                                    <span class="badge bg-success">v{{ current_info.version }}</span>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-3"><strong>Размер:</strong></div>
+                                <div class="col-sm-9">{{ (current_info.file_size / 1024) | round(1) }} KB</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-3"><strong>Загружен:</strong></div>
+                                <div class="col-sm-9">{{ current_info.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <h6>Содержимое:</h6>
+                            <div class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
+                                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ current_info.content }}</pre>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Информация о компании не загружена</h5>
+                                <p class="text-muted">Загрузите DOCX файл с информацией о вашей компании</p>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                                    <i class="fas fa-upload"></i> Загрузить файл
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- История версий -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-history text-info"></i> История версий
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if history %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Версия</th>
+                                            <th>Файл</th>
+                                            <th>Дата</th>
+                                            <th>Размер</th>
+                                            <th>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in history %}
+                                        <tr>
+                                            <td>
+                                                {% if item.is_active %}
+                                                <span class="badge bg-success">v{{ item.version }}</span>
+                                                <small class="text-success d-block">Активная</small>
+                                                {% else %}
+                                                <span class="badge bg-secondary">v{{ item.version }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-file-earmark-word text-primary me-2"></i>
+                                                    <span>{{ item.original_filename }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <small>{{ item.created_at.strftime('%d.%m.%Y') }}</small><br>
+                                                <small class="text-muted">{{ item.created_at.strftime('%H:%M') }}</small>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ (item.file_size / 1024) | round(1) }} KB</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <!-- Кнопка просмотра -->
+                                                    <button type="button" class="btn btn-outline-info" 
+                                                            onclick="previewVersion({{ item.id }})" title="Просмотр содержимого">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    
+                                                    <!-- Кнопка удаления (только для неактивных версий) -->
+                                                    {% if not item.is_active %}
+                                                    <button type="button" class="btn btn-outline-danger" 
+                                                            onclick="deleteVersion({{ item.id }}, event)" title="Удалить версию">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-3">
+                                <i class="fas fa-history fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">История пуста</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно загрузки -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/admin/company-info/upload" method="post" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Загрузить информацию о компании</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Выберите DOCX файл</label>
+                        <input type="file" class="form-control" id="file" name="file" 
+                               accept=".docx" required>
+                        <div class="form-text">
+                            Поддерживается только формат DOCX. Максимальный размер: 2MB.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Важно:</strong> Загрузка нового файла автоматически деактивирует предыдущую версию 
+                        и сделает новую версию активной.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Загрузить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно предварительного просмотра -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Предварительный просмотр</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <div class="text-center py-3">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Проверяем что Bootstrap загружен
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded');
+    console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+    console.log('Modal constructor:', typeof bootstrap?.Modal);
+});
+
+function previewVersion(infoId) {
+    console.log('previewVersion called with infoId:', infoId);
+    console.log('Bootstrap:', typeof bootstrap);
+    
+    try {
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    const content = document.getElementById('previewContent');
+    
+    // Показываем спиннер
+    content.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Загружаем данные
+    fetch(`/admin/company-info/preview/${infoId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            content.innerHTML = `
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Файл:</strong></div>
+                    <div class="col-sm-9">${data.filename}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Версия:</strong></div>
+                    <div class="col-sm-9">
+                        <span class="badge ${data.is_active ? 'bg-success' : 'bg-secondary'}">
+                            v${data.version} ${data.is_active ? '(активная)' : ''}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Размер:</strong></div>
+                    <div class="col-sm-9">${(data.file_size / 1024).toFixed(1)} KB</div>
+                </div>
+                <hr>
+                <h6>Содержимое:</h6>
+                <div class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
+                    <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">${data.content}</pre>
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке данных:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Ошибка при загрузке данных: ${error.message}
+                </div>
+            `;
+        });
+    } catch (error) {
+        console.error('Ошибка в previewVersion:', error);
+        alert('Ошибка при открытии предварительного просмотра: ' + error.message);
+    }
+}
+
+function deleteAllOldVersions() {
+    if (confirm('Удалить все старые версии? Останется только текущая активная версия. Это действие нельзя отменить.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/company-info/delete-old-versions';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteVersion(infoId, event) {
+    console.log('deleteVersion called with infoId:', infoId);
+    console.log('Event:', event);
+    
+    try {
+    if (confirm('Удалить эту версию? Это действие нельзя отменить.')) {
+        // Показываем индикатор загрузки
+        const btn = event.target.closest('button');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        btn.disabled = true;
+        
+        fetch(`/admin/company-info/delete/${infoId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Показываем успешное сообщение и перезагружаем
+                alert('Версия успешно удалена');
+                location.reload();
+            } else {
+                throw new Error(data.message || 'Ошибка при удалении');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при удалении:', error);
+            alert('Ошибка при удалении: ' + error.message);
+            // Восстанавливаем кнопку
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        });
+    }
+    } catch (error) {
+        console.error('Ошибка в deleteVersion:', error);
+        alert('Ошибка при удалении: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

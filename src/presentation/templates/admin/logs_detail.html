@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">{{ page_title }}</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/logs/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i>
+                        <span class="d-none d-md-inline">К логам</span>
+                    </a>
+                    <a href="/admin/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="d-none d-md-inline">Дашборд</span>
+                    </a>
+                    <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Выйти</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid mt-3">
+            <div class="row">
+                <!-- Основная информация -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="{{ log_entry.level_icon }}"></i>
+                                Детали лога #{{ log_entry.id }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Уровень и время -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Уровень:</strong>
+                                    <span class="badge bg-{{ log_entry.level_badge_color }} ms-2">
+                                        <i class="{{ log_entry.level_icon }}"></i>
+                                        {{ log_entry.level_display }}
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Время:</strong>
+                                    <span class="ms-2">{{ log_entry.formatted_timestamp }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Сообщение -->
+                            <div class="mb-3">
+                                <strong>Сообщение:</strong>
+                                <div class="mt-2 p-3 border rounded bg-light">
+                                    <pre class="mb-0" style="white-space: pre-wrap; word-wrap: break-word;">{{ log_entry.message }}</pre>
+                                </div>
+                            </div>
+
+                            <!-- Местоположение в коде -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Модуль:</strong>
+                                    <code class="ms-2">{{ log_entry.module }}</code>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Функция:</strong>
+                                    <code class="ms-2">{{ log_entry.function }}</code>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Строка:</strong>
+                                    <code class="ms-2">{{ log_entry.line_number }}</code>
+                                </div>
+                            </div>
+
+                            <!-- Дополнительные данные -->
+                            {% if log_entry.extra_data %}
+                            <div class="mb-3">
+                                <strong>Дополнительные данные:</strong>
+                                <div class="mt-2 p-3 border rounded bg-light">
+                                    <pre class="mb-0"><code class="json">{{ log_entry.extra_data | tojson(indent=2) }}</code></pre>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Действия -->
+                            <div class="d-flex justify-content-between">
+                                <a href="/admin/logs/" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Назад к списку
+                                </a>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary" onclick="copyToClipboard()">
+                                        <i class="bi bi-clipboard"></i> Копировать
+                                    </button>
+                                    {% if log_entry.is_error %}
+                                    <button class="btn btn-outline-warning" onclick="reportBug()">
+                                        <i class="bi bi-bug"></i> Сообщить об ошибке
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Боковая панель с контекстом -->
+                <div class="col-md-4">
+                    <!-- Контекст -->
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                Контекст
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td><strong>ID записи:</strong></td>
+                                    <td>{{ log_entry.id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Местоположение:</strong></td>
+                                    <td><code>{{ log_entry.location }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Тип события:</strong></td>
+                                    <td>
+                                        {% if log_entry.is_error %}
+                                        <span class="text-danger">Ошибка</span>
+                                        {% elif log_entry.is_important %}
+                                        <span class="text-warning">Важное</span>
+                                        {% else %}
+                                        <span class="text-muted">Обычное</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Длина сообщения:</strong></td>
+                                    <td>{{ log_entry.message|length }} символов</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Рекомендации -->
+                    {% if log_entry.is_error %}
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-danger text-white">
+                            <h6 class="mb-0">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Требует внимания
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small">Это сообщение об ошибке требует проверки:</p>
+                            <ul class="small">
+                                <li>Проверьте конфигурацию системы</li>
+                                <li>Убедитесь в доступности внешних сервисов</li>
+                                <li>Проверьте логи окружающего времени</li>
+                                {% if log_entry.level.value == 'CRITICAL' %}
+                                <li><strong>Критическая ошибка!</strong> Требуется немедленное вмешательство</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% elif log_entry.level.value == 'WARNING' %}
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Предупреждение
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small">Это предупреждение может указывать на потенциальную проблему:</p>
+                            <ul class="small">
+                                <li>Мониторьте повторение данного события</li>
+                                <li>Рассмотрите профилактические меры</li>
+                                <li>Проверьте связанные компоненты</li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Быстрые действия -->
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-lightning"></i>
+                                Быстрые действия
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="/admin/logs/?search={{ log_entry.module }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-search"></i> Логи этого модуля
+                                </a>
+                                <a href="/admin/logs/?level={{ log_entry.level.value }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-funnel"></i> Логи этого уровня
+                                </a>
+                                {% if log_entry.is_error %}
+                                <a href="/admin/logs/?errors_only=true" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-exclamation-triangle"></i> Только ошибки
+                                </a>
+                                {% endif %}
+                                <button class="btn btn-outline-info btn-sm" onclick="searchSimilar()">
+                                    <i class="bi bi-clipboard-data"></i> Похожие логи
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытый элемент для копирования -->
+<textarea id="copyText" style="position: absolute; left: -9999px;">ID: {{ log_entry.id }}
+Время: {{ log_entry.formatted_timestamp }}
+Уровень: {{ log_entry.level_display }}
+Модуль: {{ log_entry.location }}
+Сообщение: {{ log_entry.message }}
+{% if log_entry.extra_data %}
+Дополнительные данные: {{ log_entry.extra_data | tojson }}
+{% endif %}</textarea>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Функция для переключения sidebar на мобильных
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarMenu');
+        sidebar.classList.toggle('show');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar.classList.contains('show')) {
+            overlay.classList.add('show');
+        } else {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Скрываем sidebar при клике вне его на мобильных
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebarMenu');
+        const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
+
+    // Копирование в буфер обмена
+    function copyToClipboard() {
+        const copyText = document.getElementById('copyText');
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        
+        try {
+            document.execCommand('copy');
+            
+            // Показываем уведомление
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check"></i> Скопировано';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-primary');
+            }, 2000);
+        } catch (err) {
+            alert('Ошибка копирования: ' + err);
+        }
+    }
+
+    // Поиск похожих логов
+    function searchSimilar() {
+        const module = "{{ log_entry.module }}";
+        const func = "{{ log_entry.function }}";
+        const searchQuery = `${module}.${func}`;
+        window.location.href = `/admin/logs/?search=${encodeURIComponent(searchQuery)}`;
+    }
+
+    // Сообщить об ошибке (заглушка)
+    function reportBug() {
+        alert('Функция создания отчета об ошибке будет реализована в будущих версиях.\n\nПока что скопируйте детали лога и сообщите разработчикам.');
+    }
+
+    // Подсветка синтаксиса JSON (если есть дополнительные данные)
+    document.addEventListener('DOMContentLoaded', function() {
+        const jsonElements = document.querySelectorAll('code.json');
+        jsonElements.forEach(element => {
+            try {
+                const jsonObj = JSON.parse(element.textContent);
+                element.innerHTML = JSON.stringify(jsonObj, null, 2);
+            } catch (e) {
+                // Если JSON невалидный, оставляем как есть
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+

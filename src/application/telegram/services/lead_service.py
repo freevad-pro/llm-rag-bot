@@ -244,9 +244,9 @@ class LeadService:
             # Последняя активность из сообщений
             subquery = select(
                 Conversation.user_id,
-                func.max(Conversation.started_at).label('last_activity')
+                func.max(Conversation.created_at).label('last_activity')
             ).where(
-                Conversation.started_at >= cutoff_time - timedelta(hours=24)  # В последние 24 часа
+                Conversation.created_at >= cutoff_time - timedelta(hours=24)  # В последние 24 часа
             ).group_by(Conversation.user_id).subquery()
             
             # Пользователи БЕЗ ЛИДОВ ВООБЩЕ

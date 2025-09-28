@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+            <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h2 mb-0">Панель управления</h1>
+                </div>
+                <div class="btn-toolbar">
+                    <div class="btn-group">
+                        <a href="/admin/profile" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-person"></i>
+                            <span class="d-none d-md-inline">Профиль</span>
+                        </a>
+                        <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span class="d-none d-md-inline">Выйти</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="bi bi-speedometer2 text-primary"></i>
+                Панель управления
+            </h1>
+            <span class="badge bg-success fs-6">
+                <i class="bi bi-check-circle"></i>
+                Система работает
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Основная статистика -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Пользователи
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.users_count }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Диалоги
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.conversations_count }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-chat-dots text-success" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Лиды
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.leads_count }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-person-plus text-info" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Товары в каталоге
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.catalog_products }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-collection text-warning" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning"></i>
+                    Быстрые действия
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if current_user.can_manage_catalog() %}
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="/admin/catalog/upload" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="bi bi-upload" style="font-size: 2rem;"></i>
+                            <span class="mt-2">Загрузить каталог</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    {% if current_user.can_edit_prompts() %}
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="/admin/prompts" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="bi bi-chat-quote" style="font-size: 2rem;"></i>
+                            <span class="mt-2">Редактировать промпты</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="/admin/company-info" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="bi bi-building" style="font-size: 2rem;"></i>
+                            <span class="mt-2">Обновить информацию о компании</span>
+                        </a>
+                    </div>
+                    
+                    {% if current_user.can_view_basic_stats() %}
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="/admin/stats" class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                            <span class="mt-2">Подробная статистика</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Системная информация -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Состояние системы
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Компоненты</h6>
+                        <ul class="list-unstyled">
+                            <li>
+                                <i class="bi bi-database text-success"></i>
+                                База данных: <span class="badge bg-success">Работает</span>
+                            </li>
+                            <li>
+                                <i class="bi bi-robot text-success"></i>
+                                Telegram бот: <span class="badge bg-success">Активен</span>
+                            </li>
+                            <li>
+                                <i class="bi bi-search text-success"></i>
+                                Поиск (Chroma): <span class="badge bg-success">Готов</span>
+                            </li>
+                            <li>
+                                <i class="bi bi-cpu text-success"></i>
+                                LLM сервис: <span class="badge bg-success">OpenAI</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Версия системы</h6>
+                        <p class="text-muted">
+                            Итерация 6: Админ-панель<br>
+                            Версия: 0.6.0<br>
+                            Статус: Production Ready
+                        </p>
+                        
+                        {% if current_user.can_access_logs() %}
+                        <a href="/admin/logs" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-file-text"></i>
+                            Посмотреть логи
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock"></i>
+                    Активность
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Система запущена</h6>
+                            <p class="timeline-text text-muted">Все компоненты работают</p>
+                        </div>
+                    </div>
+                    <!-- TODO: Добавить реальные события из логов -->
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        Последнее обновление: Сейчас
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Автообновление статистики каждые 30 секунд
+setInterval(() => {
+    // TODO: Реализовать через HTMX
+    console.log('Обновление статистики...');
+}, 30000);
+
+// Функция для переключения sidebar на мобильных
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarMenu');
+    sidebar.classList.toggle('show');
+}
+
+// Скрываем sidebar при клике вне его на мобильных
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebarMenu');
+    const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+    
+    if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+        sidebar.classList.remove('show');
+    }
+});
+</script>
+{% endblock %}

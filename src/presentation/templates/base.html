@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if page_title %}{{ page_title }} - {% endif %}KeTai Consulting Admin</title>
+    
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    
+    <!-- Кастомные стили -->
+    <link href="/static/css/admin.css" rel="stylesheet">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if current_user %}
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/admin/">
+                <i class="bi bi-robot"></i>
+                KeTai Admin
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/">
+                            <i class="bi bi-speedometer2"></i>
+                            Дашборд
+                        </a>
+                    </li>
+                    
+                    {% if current_user.can_manage_catalog() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/catalog">
+                            <i class="bi bi-collection"></i>
+                            Каталог
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.can_edit_prompts() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/prompts">
+                            <i class="bi bi-chat-quote"></i>
+                            Промпты
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.can_manage_services() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/services">
+                            <i class="bi bi-tools"></i>
+                            Услуги
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/company-info">
+                            <i class="bi bi-building"></i>
+                            О компании
+                        </a>
+                    </li>
+                    
+                    {% if current_user.can_view_basic_stats() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/stats">
+                            <i class="bi bi-graph-up"></i>
+                            Статистика
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.can_access_logs() %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-gear"></i>
+                            Администрирование
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/admin/logs">
+                                <i class="bi bi-file-text"></i>
+                                Логи системы
+                            </a></li>
+                            <li><a class="dropdown-item" href="/admin/database">
+                                <i class="bi bi-database"></i>
+                                База данных
+                            </a></li>
+                            <li><a class="dropdown-item" href="/admin/llm-settings">
+                                <i class="bi bi-cpu"></i>
+                                Настройки LLM
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- Информация о пользователе -->
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i>
+                            {{ current_user.display_name }}
+                            <span class="badge bg-secondary">{{ current_user.role.value }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/admin/profile">
+                                <i class="bi bi-person"></i>
+                                Профиль
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="/admin/logout" class="d-inline">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-box-arrow-right"></i>
+                                        Выйти
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- Основной контент -->
+    <main class="{% if current_user %}container-fluid py-4{% else %}min-vh-100 d-flex align-items-center{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Уведомления -->
+    <div id="notifications" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+    
+    <!-- Bootstrap 5.3 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Кастомные скрипты -->
+    <script src="/static/js/admin.js"></script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">{{ page_title }}</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="d-none d-md-inline">Дашборд</span>
+                    </a>
+                    <a href="/admin/profile" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-person"></i>
+                        <span class="d-none d-md-inline">Профиль</span>
+                    </a>
+                    <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Выйти</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid mt-3">
+            {% if message %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <!-- Статистика -->
+            <div class="row mb-4">
+                <div class="col-md-2">
+                    <div class="card border-left-primary">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        Всего логов
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ stats.total_logs }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-journal-text text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card border-left-danger">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                        Ошибки
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ stats.by_level.ERROR + stats.by_level.CRITICAL }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card border-left-warning">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                        Предупреждения
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ stats.by_level.WARNING }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-exclamation-circle text-warning" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card border-left-info">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                        Информация
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ stats.by_level.INFO }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-info-circle text-info" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card border-left-secondary">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                                        Отладка
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ stats.by_level.DEBUG }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-bug text-secondary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card border-left-success">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                        Найдено
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        {{ total_count }}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-search text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Фильтры -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel"></i>
+                        Фильтры и поиск
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="/admin/logs/">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="search" class="form-label">Поиск по тексту</label>
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       value="{{ search }}" placeholder="Сообщение, модуль, функция...">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="level" class="form-label">Уровень</label>
+                                <select class="form-select" id="level" name="level">
+                                    <option value="">Все уровни</option>
+                                    {% for log_level in log_levels %}
+                                    <option value="{{ log_level.value }}" {% if level_filter == log_level.value %}selected{% endif %}>
+                                        {{ log_level.display_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="module" class="form-label">Модуль</label>
+                                <select class="form-select" id="module" name="module">
+                                    <option value="">Все модули</option>
+                                    {% for mod in available_modules %}
+                                    <option value="{{ mod }}" {% if module_filter == mod %}selected{% endif %}>
+                                        {{ mod }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="date_from" class="form-label">От даты</label>
+                                <input type="date" class="form-control" id="date_from" name="date_from" 
+                                       value="{{ date_from.isoformat() if date_from else '' }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="date_to" class="form-label">До даты</label>
+                                <input type="date" class="form-control" id="date_to" name="date_to" 
+                                       value="{{ date_to.isoformat() if date_to else '' }}">
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="errors_only" name="errors_only" 
+                                           {% if errors_only %}checked{% endif %}>
+                                    <label class="form-check-label" for="errors_only">
+                                        Только ошибки
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Найти
+                                </button>
+                                <a href="/admin/logs/" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-clockwise"></i> Сбросить
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Действия -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <span class="text-muted">Показано: {{ logs|length }} из {{ total_count }}</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/admin/logs/export/csv?{{ request.query_params }}" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-download"></i> CSV
+                    </a>
+                    <a href="/admin/logs/export/json?{{ request.query_params }}" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-download"></i> JSON
+                    </a>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cleanupModal">
+                        <i class="bi bi-trash"></i> Очистить старые
+                    </button>
+                </div>
+            </div>
+
+            <!-- Список логов -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Системные логи (за последние {{ stats.period_days }} дней)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Уровень</th>
+                                    <th>Модуль</th>
+                                    <th>Сообщение</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log_entry in logs %}
+                                <tr {% if log_entry.is_error %}class="table-danger"{% elif log_entry.level.value == 'WARNING' %}class="table-warning"{% endif %}>
+                                    <td>
+                                        <small class="text-muted">{{ log_entry.formatted_timestamp }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ log_entry.level_badge_color }}">
+                                            <i class="{{ log_entry.level_icon }}"></i>
+                                            {{ log_entry.level_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <code class="small">{{ log_entry.location }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="{% if log_entry.is_error %}text-danger{% endif %}">
+                                            {{ log_entry.short_message }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/admin/logs/view/{{ log_entry.id }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        Логи не найдены по заданным критериям.
+                                        {% if search or level_filter or module_filter or date_from or date_to or errors_only %}
+                                        <a href="/admin/logs/">Показать все логи</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Пагинация -->
+                    {% if total_pages > 1 %}
+                    <nav aria-label="Навигация по страницам">
+                        <ul class="pagination justify-content-center">
+                            {% if has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ current_page - 1 }}&{{ request.query_params }}">Предыдущая</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in range(1, total_pages + 1) %}
+                                {% if page_num == current_page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= current_page - 2 and page_num <= current_page + 2) %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_num }}&{{ request.query_params }}">{{ page_num }}</a>
+                                </li>
+                                {% elif page_num == 4 or page_num == total_pages - 3 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ current_page + 1 }}&{{ request.query_params }}">Следующая</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно очистки логов -->
+<div class="modal fade" id="cleanupModal" tabindex="-1" aria-labelledby="cleanupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cleanupModalLabel">Очистка старых логов</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Удаление старых логов поможет освободить место в базе данных.</p>
+                <div class="mb-3">
+                    <label for="days_to_keep" class="form-label">Сохранить логи за последние дней:</label>
+                    <input type="number" class="form-control" id="days_to_keep" value="30" min="7" max="365">
+                    <div class="form-text">Логи старше указанного периода будут удалены безвозвратно.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="cleanupLogs()">Удалить старые логи</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Функция для переключения sidebar на мобильных
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarMenu');
+        sidebar.classList.toggle('show');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar.classList.contains('show')) {
+            overlay.classList.add('show');
+        } else {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Скрываем sidebar при клике вне его на мобильных
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebarMenu');
+        const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
+
+    // Функция очистки логов
+    async function cleanupLogs() {
+        const daysToKeep = document.getElementById('days_to_keep').value;
+        
+        try {
+            const response = await fetch(`/admin/logs/cleanup?days_to_keep=${daysToKeep}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`Удалено ${result.deleted_count} старых логов`);
+                    location.reload();
+                } else {
+                    alert('Ошибка при очистке логов: ' + result.message);
+                }
+            } else {
+                alert('Ошибка при очистке логов: HTTP ' + response.status);
+            }
+        } catch (error) {
+            alert('Ошибка при очистке логов: ' + error.message);
+        }
+        
+        // Закрываем модальное окно
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cleanupModal'));
+        modal.hide();
+    }
+
+    // Автоматическое обновление страницы каждые 30 секунд для критических ошибок
+    {% if errors_only %}
+    setInterval(() => {
+        location.reload();
+    }, 30000);
+    {% endif %}
+</script>
+{% endblock %}

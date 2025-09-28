@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">Загрузка каталога</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/catalog/status" class="btn btn-sm btn-outline-info">
+                        <i class="bi bi-info-circle"></i>
+                        <span class="d-none d-md-inline">Статус</span>
+                    </a>
+                    <a href="/admin/catalog/history" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-clock-history"></i>
+                        <span class="d-none d-md-inline">История</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    
+                    <!-- Уведомления -->
+                    {% if success %}
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle"></i>
+                        {{ success }}
+                        {% if filename %}
+                        <br><small class="text-muted">Файл: {{ filename }} ({{ file_size }})</small>
+                        {% endif %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+                    
+                    {% if error %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        {{ error }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Основная форма загрузки -->
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-upload"></i>
+                                        Загрузить новый каталог
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form method="post" enctype="multipart/form-data" id="uploadForm">
+                                        
+                                        <!-- Выбор файла -->
+                                        <div class="mb-4">
+                                            <label for="file" class="form-label">
+                                                <strong>Excel файл каталога</strong>
+                                            </label>
+                                            <input type="file" 
+                                                   class="form-control" 
+                                                   id="file" 
+                                                   name="file" 
+                                                   accept=".xlsx,.xls"
+                                                   required>
+                                            <div class="form-text">
+                                                Поддерживаемые форматы: 
+                                                {% for format in supported_formats %}
+                                                    <span class="badge bg-secondary">{{ format }}</span>
+                                                {% endfor %}
+                                                <br>
+                                                Максимальный размер: {{ max_file_size_mb }} MB
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Тип переиндексации -->
+                                        <div class="mb-4">
+                                            <label class="form-label">
+                                                <strong>Время переиндексации</strong>
+                                            </label>
+                                            
+                                            <div class="form-check">
+                                                <input class="form-check-input" 
+                                                       type="radio" 
+                                                       name="schedule_type" 
+                                                       id="immediate" 
+                                                       value="immediate" 
+                                                       checked>
+                                                <label class="form-check-label" for="immediate">
+                                                    <strong>Немедленно</strong>
+                                                    <br><small class="text-muted">Переиндексация начнется сразу после загрузки</small>
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="form-check">
+                                                <input class="form-check-input" 
+                                                       type="radio" 
+                                                       name="schedule_type" 
+                                                       id="scheduled" 
+                                                       value="scheduled">
+                                                <label class="form-check-label" for="scheduled">
+                                                    <strong>Запланировать</strong>
+                                                    <br><small class="text-muted">Переиндексация в указанное время (в разработке)</small>
+                                                </label>
+                                            </div>
+                                            
+                                            <!-- Поле для времени (скрыто по умолчанию) -->
+                                            <div class="mt-3" id="scheduleTimeGroup" style="display: none;">
+                                                <input type="datetime-local" 
+                                                       class="form-control" 
+                                                       id="schedule_time" 
+                                                       name="schedule_time">
+                                                <div class="form-text">
+                                                    Переиндексация будет выполнена в указанное время
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Кнопки -->
+                                        <div class="d-flex justify-content-between">
+                                            <a href="/admin/" class="btn btn-outline-secondary">
+                                                <i class="bi bi-arrow-left"></i>
+                                                Назад к панели
+                                            </a>
+                                            
+                                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                                <i class="bi bi-upload"></i>
+                                                Загрузить каталог
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Боковая панель с информацией -->
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-info-circle"></i>
+                                        Требования к файлу
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <h6>Обязательные колонки:</h6>
+                                    <ul class="list-unstyled small">
+                                        <li><i class="bi bi-check text-success"></i> <code>id</code> - уникальный ID</li>
+                                        <li><i class="bi bi-check text-success"></i> <code>product name</code> - название</li>
+                                        <li><i class="bi bi-check text-success"></i> <code>description</code> - описание</li>
+                                        <li><i class="bi bi-check text-success"></i> <code>category 1</code> - категория 1</li>
+                                        <li><i class="bi bi-check text-success"></i> <code>category 2</code> - категория 2</li>
+                                        <li><i class="bi bi-check text-success"></i> <code>category 3</code> - категория 3</li>
+                                        <li><i class="bi bi-check text-success"></i> <code>article</code> - артикул</li>
+                                    </ul>
+                                    
+                                    <h6 class="mt-3">Опциональные колонки:</h6>
+                                    <ul class="list-unstyled small">
+                                        <li><i class="bi bi-dash text-muted"></i> <code>photo_url</code> - ссылка на фото</li>
+                                        <li><i class="bi bi-dash text-muted"></i> <code>page_url</code> - ссылка на страницу</li>
+                                    </ul>
+                                    
+                                    <div class="alert alert-info mt-3">
+                                        <small>
+                                            <i class="bi bi-lightbulb"></i>
+                                            Другие колонки будут проигнорированы и не помешают работе
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Blue-Green Deployment информация -->
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-shield-check"></i>
+                                        Безопасное обновление
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="small">
+                                        Используется технология <strong>Blue-Green Deployment</strong>:
+                                    </p>
+                                    <ul class="list-unstyled small">
+                                        <li><i class="bi bi-check text-success"></i> Система работает без простоя</li>
+                                        <li><i class="bi bi-check text-success"></i> Старый каталог остается активным</li>
+                                        <li><i class="bi bi-check text-success"></i> Переключение после завершения</li>
+                                        <li><i class="bi bi-check text-success"></i> Возможность отката</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Показ/скрытие поля времени планирования
+document.addEventListener('DOMContentLoaded', function() {
+    const immediateRadio = document.getElementById('immediate');
+    const scheduledRadio = document.getElementById('scheduled');
+    const scheduleTimeGroup = document.getElementById('scheduleTimeGroup');
+    const scheduleTimeInput = document.getElementById('schedule_time');
+    
+    function toggleScheduleTime() {
+        if (scheduledRadio.checked) {
+            scheduleTimeGroup.style.display = 'block';
+            scheduleTimeInput.required = true;
+        } else {
+            scheduleTimeGroup.style.display = 'none';
+            scheduleTimeInput.required = false;
+        }
+    }
+    
+    immediateRadio.addEventListener('change', toggleScheduleTime);
+    scheduledRadio.addEventListener('change', toggleScheduleTime);
+});
+
+// Валидация файла перед отправкой
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        alert('Пожалуйста, выберите файл для загрузки');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const maxSize = {{ max_file_size_mb }} * 1024 * 1024; // MB в байты
+    
+    if (file.size > maxSize) {
+        e.preventDefault();
+        alert(`Размер файла превышает {{ max_file_size_mb }} MB`);
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Загружается...';
+    submitBtn.disabled = true;
+});
+
+// Функция для переключения sidebar на мобильных
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarMenu');
+    sidebar.classList.toggle('show');
+}
+
+// Предварительный просмотр выбранного файла
+document.getElementById('file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        const fileName = file.name;
+        
+        // Можно добавить отображение информации о файле
+        console.log(`Выбран файл: ${fileName} (${fileSize} MB)`);
+    }
+});
+</script>
+{% endblock %}

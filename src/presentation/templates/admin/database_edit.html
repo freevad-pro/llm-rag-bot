@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">{{ page_title }}</h1>
+                <a href="/admin/database?table={{ table }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Назад к списку
+                </a>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-pencil"></i> Редактирование записи #{{ record_id }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="/admin/database/edit/{{ table }}/{{ record_id }}">
+                                {% for field_name, field_config in table_config.fields.items() %}
+                                    {% if field_config.type != 'readonly' %}
+                                    <div class="mb-3">
+                                        <label for="{{ field_name }}" class="form-label">
+                                            {{ field_config.name }}
+                                            {% if field_config.get('required') %}
+                                            <span class="text-danger">*</span>
+                                            {% endif %}
+                                        </label>
+                                        
+                                        {% set current_value = record[field_name] %}
+                                        
+                                        {% if field_config.type == 'text' %}
+                                            <input type="text" class="form-control" id="{{ field_name }}" name="{{ field_name }}" 
+                                                   value="{{ current_value or '' }}" 
+                                                   {% if field_config.get('required') %}required{% endif %}>
+                                        
+                                        {% elif field_config.type == 'email' %}
+                                            <input type="email" class="form-control" id="{{ field_name }}" name="{{ field_name }}" 
+                                                   value="{{ current_value or '' }}" 
+                                                   {% if field_config.get('required') %}required{% endif %}>
+                                        
+                                        {% elif field_config.type == 'number' %}
+                                            <input type="number" class="form-control" id="{{ field_name }}" name="{{ field_name }}" 
+                                                   value="{{ current_value or '' }}" 
+                                                   {% if field_config.get('required') %}required{% endif %}>
+                                        
+                                        {% elif field_config.type == 'boolean' %}
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="{{ field_name }}" name="{{ field_name }}" 
+                                                       value="true" {% if current_value %}checked{% endif %}>
+                                                <label class="form-check-label" for="{{ field_name }}">
+                                                    Включено
+                                                </label>
+                                            </div>
+                                        
+                                        {% elif field_config.type == 'select' %}
+                                            <select class="form-select" id="{{ field_name }}" name="{{ field_name }}" 
+                                                    {% if field_config.get('required') %}required{% endif %}>
+                                                <option value="">Выберите значение</option>
+                                                {% for option in field_config.options %}
+                                                <option value="{{ option }}" {% if current_value == option %}selected{% endif %}>
+                                                    {{ option }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        
+                                        {% elif field_config.type == 'textarea' %}
+                                            <textarea class="form-control" id="{{ field_name }}" name="{{ field_name }}" 
+                                                      rows="4" {% if field_config.get('required') %}required{% endif %}>{{ current_value or '' }}</textarea>
+                                        
+                                        {% endif %}
+                                        
+                                        {% if field_name in ['chat_id', 'telegram_user_id'] %}
+                                        <div class="form-text">
+                                            Будьте осторожны при изменении ID - это может нарушить связи в системе
+                                        </div>
+                                        {% elif field_name == 'quality_score' %}
+                                        <div class="form-text">
+                                            Значение от 0 до 100
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                <hr>
+
+                                <!-- Readonly поля для справки -->
+                                <h6 class="text-muted mb-3">Системная информация (только для чтения)</h6>
+                                <div class="row">
+                                    {% for field_name, field_config in table_config.fields.items() %}
+                                        {% if field_config.type == 'readonly' %}
+                                        <div class="col-md-6 mb-2">
+                                            <small class="text-muted">{{ field_config.name }}:</small><br>
+                                            {% set current_value = record[field_name] %}
+                                            {% if current_value is none %}
+                                                <span class="text-muted">—</span>
+                                            {% elif field_name in ['created_at', 'updated_at', 'last_activity', 'completed_at', 'qualified_at'] %}
+                                                {{ current_value.strftime('%d.%m.%Y %H:%M:%S') if current_value else '—' }}
+                                            {% else %}
+                                                {{ current_value }}
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                <hr>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="/admin/database?table={{ table }}" class="btn btn-secondary">
+                                        <i class="bi bi-x"></i> Отмена
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check"></i> Сохранить изменения
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Предупреждение -->
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Внимание!</strong> Изменения в базе данных могут повлиять на работу системы. 
+                        Будьте осторожны при редактировании критических полей.
+                        Все изменения логируются.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

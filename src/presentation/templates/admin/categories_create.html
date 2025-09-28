@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">{{ page_title }}</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="d-none d-md-inline">Дашборд</span>
+                    </a>
+                    <a href="/admin/profile" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-person"></i>
+                        <span class="d-none d-md-inline">Профиль</span>
+                    </a>
+                    <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Выйти</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid mt-3">
+            {% if message %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <!-- Справка -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-lightbulb"></i>
+                                Справка по созданию категории
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>Рекомендации:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Техническое имя:</strong> Уникальное, без пробелов</li>
+                                <li><strong>Название:</strong> Красивое отображаемое название</li>
+                                <li><strong>Цвет:</strong> В формате #RRGGBB</li>
+                                <li><strong>Иконка:</strong> Название из Bootstrap Icons</li>
+                                <li><strong>Порядок:</strong> 0 = сначала, 99 = в конце</li>
+                            </ul>
+                            
+                            <h6 class="mt-3">Примеры цветов:</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <span class="badge" style="background-color: #007bff; color: white;">#007bff</span><br>
+                                    <span class="badge" style="background-color: #28a745; color: white;">#28a745</span><br>
+                                    <span class="badge" style="background-color: #dc3545; color: white;">#dc3545</span><br>
+                                    <span class="badge" style="background-color: #ffc107; color: black;">#ffc107</span>
+                                </div>
+                                <div class="col-6">
+                                    <span class="badge" style="background-color: #17a2b8; color: white;">#17a2b8</span><br>
+                                    <span class="badge" style="background-color: #e83e8c; color: white;">#e83e8c</span><br>
+                                    <span class="badge" style="background-color: #fd7e14; color: white;">#fd7e14</span><br>
+                                    <span class="badge" style="background-color: #6f42c1; color: white;">#6f42c1</span>
+                                </div>
+                            </div>
+                            
+                            <h6 class="mt-3">Популярные иконки:</h6>
+                            <div class="d-flex flex-wrap">
+                                <span class="me-2"><i class="bi bi-code-slash"></i> code-slash</span>
+                                <span class="me-2"><i class="bi bi-people"></i> people</span>
+                                <span class="me-2"><i class="bi bi-headset"></i> headset</span>
+                                <span class="me-2"><i class="bi bi-palette"></i> palette</span>
+                                <span class="me-2"><i class="bi bi-graph-up"></i> graph-up</span>
+                                <span class="me-2"><i class="bi bi-megaphone"></i> megaphone</span>
+                                <span class="me-2"><i class="bi bi-book"></i> book</span>
+                                <span class="me-2"><i class="bi bi-gear"></i> gear</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Форма создания -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-plus-circle"></i>
+                                Создание новой категории
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="/admin/categories/create">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="name" class="form-label">Техническое имя *</label>
+                                        <input type="text" class="form-control" id="name" name="name" required
+                                               pattern="[a-z0-9_-]+" title="Только строчные буквы, цифры, дефисы и подчеркивания"
+                                               placeholder="development">
+                                        <div class="form-text">Уникальное имя без пробелов</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="display_name" class="form-label">Отображаемое название *</label>
+                                        <input type="text" class="form-control" id="display_name" name="display_name" required
+                                               placeholder="Разработка">
+                                        <div class="form-text">Красивое название для интерфейса</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Описание</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3"
+                                              placeholder="Краткое описание категории услуг..."></textarea>
+                                    <div class="form-text">Опциональное описание назначения категории</div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label for="color" class="form-label">Цвет</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">#</span>
+                                            <input type="text" class="form-control" id="color" name="color"
+                                                   pattern="[0-9A-Fa-f]{6}" title="6 символов в формате RRGGBB"
+                                                   placeholder="007bff" maxlength="6">
+                                        </div>
+                                        <div class="form-text">Без символа #</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="icon" class="form-label">Иконка</label>
+                                        <input type="text" class="form-control" id="icon" name="icon"
+                                               placeholder="gear">
+                                        <div class="form-text">Название из Bootstrap Icons</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="sort_order" class="form-label">Порядок сортировки</label>
+                                        <input type="number" class="form-control" id="sort_order" name="sort_order" 
+                                               value="0" min="0" max="999">
+                                        <div class="form-text">0 = в начале списка</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <!-- Превью -->
+                                    <label class="form-label">Превью категории</label>
+                                    <div class="border rounded p-3" id="category-preview">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-gear me-2" id="preview-icon"></i>
+                                            <span id="preview-name">Название категории</span>
+                                        </div>
+                                        <small class="text-muted" id="preview-description">Описание категории</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                                    <label class="form-check-label" for="is_active">
+                                        Активная категория (доступна для выбора)
+                                    </label>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="/admin/categories/" class="btn btn-secondary">
+                                        <i class="bi bi-arrow-left"></i> Назад к списку
+                                    </a>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-plus-circle"></i> Создать категорию
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Функция для переключения sidebar на мобильных
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarMenu');
+        sidebar.classList.toggle('show');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar.classList.contains('show')) {
+            overlay.classList.add('show');
+        } else {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Скрываем sidebar при клике вне его на мобильных
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebarMenu');
+        const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
+
+    // Превью категории
+    function updatePreview() {
+        const displayName = document.getElementById('display_name').value || 'Название категории';
+        const description = document.getElementById('description').value || 'Описание категории';
+        const color = document.getElementById('color').value;
+        const icon = document.getElementById('icon').value || 'gear';
+        
+        document.getElementById('preview-name').textContent = displayName;
+        document.getElementById('preview-description').textContent = description;
+        
+        const iconElement = document.getElementById('preview-icon');
+        iconElement.className = `bi bi-${icon} me-2`;
+        
+        if (color) {
+            iconElement.style.color = `#${color}`;
+        } else {
+            iconElement.style.color = '';
+        }
+    }
+
+    // Обновляем превью при изменении полей
+    document.getElementById('display_name').addEventListener('input', updatePreview);
+    document.getElementById('description').addEventListener('input', updatePreview);
+    document.getElementById('color').addEventListener('input', updatePreview);
+    document.getElementById('icon').addEventListener('input', updatePreview);
+
+    // Автоматическое заполнение технического имени на основе отображаемого
+    document.getElementById('display_name').addEventListener('input', function() {
+        const displayName = this.value.toLowerCase();
+        const technicalName = displayName
+            .replace(/[^a-zA-Z0-9а-яё\s]/g, '') // Убираем спецсимволы
+            .replace(/[а-яё]/g, function(match) { // Транслитерация
+                const translit = {
+                    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+                    'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+                    'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+                    'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+                    'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+                };
+                return translit[match] || match;
+            })
+            .replace(/\s+/g, '_') // Пробелы в подчеркивания
+            .replace(/[^a-z0-9_]/g, ''); // Убираем все кроме разрешенных символов
+            
+        if (technicalName && !document.getElementById('name').value) {
+            document.getElementById('name').value = technicalName;
+        }
+    });
+</script>
+{% endblock %}
+
+

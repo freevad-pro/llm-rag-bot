@@ -1,0 +1,583 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.environment-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.setting-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: #fff;
+    transition: all 0.2s ease;
+}
+
+.setting-item:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+}
+
+.setting-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.setting-title {
+    font-weight: 600;
+    margin: 0;
+    color: #212529;
+}
+
+.setting-badges {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.setting-description {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+
+.setting-value {
+    position: relative;
+}
+
+.sensitive-input {
+    padding-right: 2.5rem;
+}
+
+.toggle-visibility {
+    border: none;
+    background: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0.375rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-visibility:hover {
+    color: #0d6efd;
+}
+
+.category-section {
+    margin-bottom: 2rem;
+}
+
+.category-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-header:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+.category-header.collapsed {
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.category-content {
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+    padding: 1rem;
+    background: #fafbfc;
+}
+
+.test-connection-btn {
+    margin-left: 0.5rem;
+}
+
+.restart-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-top: 1rem;
+}
+
+.immediate-apply {
+    background: #d1edff;
+    border: 1px solid #b6d7ff;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-top: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок с индикатором среды -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">{{ page_title }}</h1>
+                    <small class="text-muted">Централизованное управление настройками системы</small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="badge bg-{{ environment.color }} environment-badge">
+                        <i class="bi bi-server"></i> {{ environment.name }}
+                    </span>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="exportSettings()">
+                            <i class="bi bi-download"></i> Экспорт
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="restartApplication()">
+                            <i class="bi bi-arrow-clockwise"></i> Перезапуск
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Предупреждение о безопасности -->
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-shield-exclamation"></i>
+                <strong>Внимание!</strong> Эта страница содержит критические настройки системы. 
+                Изменения могут повлиять на работу всего приложения. Будьте осторожны при редактировании.
+            </div>
+
+            <!-- Категории настроек -->
+            {% for category_key, category_info in categories.items() %}
+            {% if settings[category_key] %}
+            <div class="category-section">
+                <div class="category-header" data-bs-toggle="collapse" data-bs-target="#category-{{ category_key }}" aria-expanded="true">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1">
+                                <i class="{{ category_info.icon }}"></i> {{ category_info.title }}
+                            </h4>
+                            <p class="mb-0 text-muted">{{ category_info.description }}</p>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary">{{ settings[category_key]|length }} настроек</span>
+                            <i class="bi bi-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="collapse show" id="category-{{ category_key }}">
+                    <div class="category-content">
+                        {% for setting in settings[category_key] %}
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <h6 class="setting-title">{{ setting.title }}</h6>
+                                <div class="setting-badges">
+                                    {% if setting.source == 'env' %}
+                                        {% if setting.restart_required %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-arrow-clockwise"></i> Перезапуск
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Сразу
+                                        </span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-database"></i> БД
+                                    </span>
+                                    {% endif %}
+                                    
+                                    {% if setting.is_sensitive %}
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-shield-lock"></i> Секретно
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if setting.description %}
+                            <div class="setting-description">{{ setting.description }}</div>
+                            {% endif %}
+                            
+                            <div class="setting-value">
+                                {% if setting.source == 'env' %}
+                                    {% if setting.setting_type == 'boolean' %}
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="setting-{{ setting.key }}" 
+                                               {% if setting.value %}checked{% endif %}
+                                               onchange="updateEnvSetting('{{ setting.key }}', this.checked ? 'true' : 'false')">
+                                        <label class="form-check-label" for="setting-{{ setting.key }}">
+                                            {{ 'Включено' if setting.value else 'Отключено' }}
+                                        </label>
+                                    </div>
+                                    
+                                    {% elif setting.setting_type == 'select' %}
+                                    <select class="form-select" id="setting-{{ setting.key }}" 
+                                            onchange="updateEnvSetting('{{ setting.key }}', this.value)">
+                                        {% for option in setting.options %}
+                                        <option value="{{ option }}" {% if setting.value == option %}selected{% endif %}>
+                                            {{ option }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    
+                                    {% elif setting.is_sensitive %}
+                                    <div class="input-group">
+                                        <input type="password" class="form-control sensitive-input" 
+                                               id="setting-{{ setting.key }}"
+                                               value="{{ setting.value }}" 
+                                               placeholder="••••••••••••"
+                                               onchange="updateEnvSetting('{{ setting.key }}', this.value)">
+                                        <button class="btn btn-outline-secondary toggle-visibility" type="button"
+                                                onclick="togglePasswordVisibility('setting-{{ setting.key }}')">
+                                            <i class="bi bi-eye" id="eye-setting-{{ setting.key }}"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    {% else %}
+                                    <input type="{{ 'number' if setting.setting_type == 'number' else 'text' }}" 
+                                           class="form-control" 
+                                           id="setting-{{ setting.key }}"
+                                           value="{{ setting.value }}" 
+                                           onchange="updateEnvSetting('{{ setting.key }}', this.value)">
+                                    {% endif %}
+                                    
+                                    <!-- Кнопки тестирования для некоторых настроек -->
+                                    {% if setting.key in ['DATABASE_URL', 'BOT_TOKEN', 'OPENAI_API_KEY'] %}
+                                    <button type="button" class="btn btn-outline-info btn-sm test-connection-btn mt-2"
+                                            onclick="testConnection('{{ setting.key }}')">
+                                        <i class="bi bi-wifi"></i> Тест подключения
+                                    </button>
+                                    {% endif %}
+                                    
+                                {% else %}
+                                <!-- Настройки из БД (только для чтения) -->
+                                <div class="form-control-plaintext">{{ setting.value }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Предупреждения -->
+                            {% if setting.source == 'env' and setting.restart_required %}
+                            <div class="restart-warning">
+                                <i class="bi bi-exclamation-triangle text-warning"></i>
+                                <small><strong>Требуется перезапуск:</strong> Изменения вступят в силу после перезапуска приложения.</small>
+                            </div>
+                            {% elif setting.source == 'db' %}
+                            <div class="immediate-apply">
+                                <i class="bi bi-info-circle text-info"></i>
+                                <small><strong>Применяется сразу:</strong> Изменения вступают в силу немедленно.</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно результатов тестирования -->
+<div class="modal fade" id="testResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Результат тестирования</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="testResultContent">
+                <!-- Содержимое будет загружено через JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Переключение видимости пароля
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const eyeIcon = document.getElementById('eye-' + inputId);
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        eyeIcon.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        eyeIcon.className = 'bi bi-eye';
+    }
+}
+
+// Обновление настройки .env
+async function updateEnvSetting(key, value) {
+    try {
+        const formData = new FormData();
+        formData.append('key', key);
+        formData.append('value', value);
+        
+        const response = await fetch('/admin/settings/update-env', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Показываем уведомление об успехе
+            showNotification('success', result.message);
+            
+            if (result.requires_restart) {
+                // Показываем предупреждение о перезапуске
+                showRestartWarning();
+            }
+        } else {
+            showNotification('error', result.error || 'Ошибка при обновлении настройки');
+            // Возвращаем предыдущее значение
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Ошибка обновления настройки:', error);
+        showNotification('error', 'Ошибка при обновлении настройки: ' + error.message);
+        location.reload();
+    }
+}
+
+// Тестирование подключения
+async function testConnection(settingKey) {
+    const serviceMap = {
+        'DATABASE_URL': 'database',
+        'BOT_TOKEN': 'telegram',
+        'OPENAI_API_KEY': 'openai'
+    };
+    
+    const service = serviceMap[settingKey];
+    if (!service) {
+        showNotification('error', 'Неизвестный сервис для тестирования');
+        return;
+    }
+    
+    try {
+        showNotification('info', 'Тестирование подключения...');
+        
+        const response = await fetch(`/admin/settings/test-connection/${service}`);
+        const result = await response.json();
+        
+        const modal = new bootstrap.Modal(document.getElementById('testResultModal'));
+        const modalTitle = document.getElementById('modalTitle');
+        const content = document.getElementById('testResultContent');
+        
+        // Восстанавливаем заголовок для тестирования
+        modalTitle.textContent = 'Результат тестирования';
+        
+        if (result.success) {
+            content.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i>
+                    <strong>Успешно!</strong> ${result.message}
+                </div>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i>
+                    <strong>Ошибка!</strong> ${result.error}
+                </div>
+            `;
+        }
+        
+        modal.show();
+        
+    } catch (error) {
+        console.error('Ошибка тестирования:', error);
+        showNotification('error', 'Ошибка при тестировании: ' + error.message);
+    }
+}
+
+// Экспорт настроек
+async function exportSettings() {
+    try {
+        const response = await fetch('/admin/settings/export');
+        const data = await response.json();
+        
+        // Создаем и скачиваем файл
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `system-settings-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showNotification('success', 'Настройки экспортированы');
+        
+    } catch (error) {
+        console.error('Ошибка экспорта:', error);
+        showNotification('error', 'Ошибка при экспорте настроек');
+    }
+}
+
+// Перезапуск приложения
+async function restartApplication() {
+    try {
+        const response = await fetch('/admin/settings/restart-application', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Сразу показываем инструкции для ручного перезапуска
+            const modal = new bootstrap.Modal(document.getElementById('testResultModal'));
+            const modalTitle = document.getElementById('modalTitle');
+            const content = document.getElementById('testResultContent');
+            
+            // Меняем заголовок модального окна
+            modalTitle.textContent = 'Перезапуск возможен только в терминале';
+            
+            content.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Команда для перезапуска приложения</strong>
+                </div>
+                <p>Для применения изменений .env файла выполните команды:</p>
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong>Development:</strong><br>
+                    <code>docker-compose down && docker-compose up -d</code><br><br>
+                    <strong>Production (быстрый перезапуск):</strong><br>
+                    <code>./scripts/prod_restart_env.sh</code><br><br>
+                    <strong>Production (полный перезапуск с пересборкой):</strong><br>
+                    <code>./scripts/prod_restart.sh</code>
+                </div>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="copyToClipboard('docker-compose down && docker-compose up -d')">
+                        <i class="bi bi-clipboard"></i> Dev команды
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="copyToClipboard('./scripts/prod_restart_env.sh')">
+                        <i class="bi bi-clipboard"></i> Prod быстрый
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('./scripts/prod_restart.sh')">
+                        <i class="bi bi-clipboard"></i> Prod полный
+                    </button>
+                </div>
+                <div class="alert alert-info mb-3">
+                    <small><i class="bi bi-info-circle"></i> <strong>Важно:</strong> Простой restart не перезагружает .env файл. Нужен полный перезапуск.</small>
+                </div>
+                <p class="text-muted mb-0">
+                    <small><i class="bi bi-terminal"></i> Выполните эту команду в терминале в директории проекта</small>
+                </p>
+            `;
+            
+            modal.show();
+        } else {
+            showNotification('error', result.error);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка перезапуска:', error);
+        showNotification('error', 'Ошибка при перезапуске приложения');
+    }
+}
+
+// Копирование в буфер обмена
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showNotification('success', 'Команда скопирована в буфер обмена');
+    } catch (err) {
+        // Fallback для старых браузеров
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('success', 'Команда скопирована в буфер обмена');
+    }
+}
+
+// Показ уведомлений
+function showNotification(type, message) {
+    // Создаем toast уведомление
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast ${bgClass} text-white" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    // Удаляем toast после скрытия
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '1055';
+    document.body.appendChild(container);
+    return container;
+}
+
+function showRestartWarning() {
+    const existingWarning = document.getElementById('restart-warning-banner');
+    if (existingWarning) return;
+    
+    const warningHtml = `
+        <div id="restart-warning-banner" class="alert alert-warning alert-dismissible fade show position-fixed" 
+             style="top: 20px; left: 50%; transform: translateX(-50%); z-index: 1050; min-width: 400px;">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Требуется перезапуск!</strong> Некоторые изменения требуют перезапуска приложения.
+            <button type="button" class="btn btn-sm btn-outline-warning ms-2" onclick="restartApplication()">
+                Перезапустить сейчас
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('afterbegin', warningHtml);
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Маскируем чувствительные данные при загрузке
+    document.querySelectorAll('input[type="password"]').forEach(input => {
+        if (input.value && !input.placeholder) {
+            input.placeholder = '••••••••••••';
+        }
+    });
+});
+</script>
+{% endblock %}

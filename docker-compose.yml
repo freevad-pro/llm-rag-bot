@@ -8,21 +8,20 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
+      # Переопределяем только критичные для development настройки
       - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/catalog_db
-      - DEBUG=true
-      - LOG_LEVEL=INFO
-      - OPENAI_API_KEY=sk-test-key-for-development-only
-      - DEFAULT_LLM_PROVIDER=yandex
-      # В development режиме бот НЕ отключается (все в одном контейнере)
-      - DISABLE_TELEGRAM_BOT=false
-      # Development пароль: "password" (НЕ используйте в production!)
+      # BOT_USERNAME и другие переменные читаются из .env файла
+      # Все остальные переменные берутся из .env файла
     depends_on:
       - postgres
     volumes:
       - ./data/persistent/chroma:/app/data/chroma
       - ./data/uploads:/app/data/uploads
       - ./src:/app/src  # Для hot reload в development
+      - ./.env:/app/.env  # Синхронизация .env файла с хостом
     restart: unless-stopped
 
   postgres:

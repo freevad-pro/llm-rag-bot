@@ -32,6 +32,8 @@ services:
       - /opt/llm-bot/data/chroma:/app/data/chroma
       - /opt/llm-bot/data/uploads:/app/data/uploads
       - /opt/llm-bot/data/logs:/app/logs
+      # Монтируем .env файл для синхронизации изменений
+      - /opt/llm-bot/config/.env:/app/.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=10)"]
@@ -62,6 +64,8 @@ services:
       - /opt/llm-bot/data/chroma:/app/data/chroma
       - /opt/llm-bot/data/uploads:/app/data/uploads
       - /opt/llm-bot/data/logs:/app/logs
+      # Монтируем .env файл для синхронизации изменений
+      - /opt/llm-bot/config/.env:/app/.env
     restart: unless-stopped
     labels:
       - "com.docker.compose.service=llm-bot-bot"

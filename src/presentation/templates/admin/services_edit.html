@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">{{ page_title }}</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="d-none d-md-inline">Дашборд</span>
+                    </a>
+                    <a href="/admin/profile" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-person"></i>
+                        <span class="d-none d-md-inline">Профиль</span>
+                    </a>
+                    <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Выйти</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid mt-3">
+            {% if message %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <!-- Информация об услуге -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                Информация об услуге
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row">
+                                <dt class="col-sm-4">ID:</dt>
+                                <dd class="col-sm-8"><code>{{ service.id }}</code></dd>
+                                
+                                <dt class="col-sm-4">Статус:</dt>
+                                <dd class="col-sm-8">
+                                    {% if service.is_active %}
+                                    <span class="badge bg-success">Активна</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Неактивна</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Категория:</dt>
+                                <dd class="col-sm-8">
+                                    {% if service.category %}
+                                    <span class="badge bg-info">{{ service.category_display }}</span>
+                                    {% else %}
+                                    <span class="text-muted">Без категории</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Порядок:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-light text-dark">{{ service.sort_order }}</span>
+                                </dd>
+                                
+                                {% if service.created_at %}
+                                <dt class="col-sm-4">Создана:</dt>
+                                <dd class="col-sm-8">{{ service.created_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                                {% endif %}
+                                
+                                {% if service.updated_at %}
+                                <dt class="col-sm-4">Обновлена:</dt>
+                                <dd class="col-sm-8">{{ service.updated_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                                {% endif %}
+                            </dl>
+                            
+                            {% if service.keywords_list %}
+                            <h6>Ключевые слова:</h6>
+                            <div class="mb-2">
+                                {% for keyword in service.keywords_list %}
+                                <span class="badge bg-secondary me-1">{{ keyword }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Действия -->
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-lightning"></i>
+                                Быстрые действия
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <form method="post" action="/admin/services/toggle/{{ service.id }}" class="d-inline">
+                                    <button type="submit" class="btn btn-warning w-100">
+                                        <i class="bi bi-{% if service.is_active %}pause{% else %}play{% endif %}"></i>
+                                        {% if service.is_active %}Деактивировать{% else %}Активировать{% endif %}
+                                    </button>
+                                </form>
+                                
+                                <form method="post" action="/admin/services/delete/{{ service.id }}" 
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить услугу \'{{ service.name }}\'?')">
+                                    <button type="submit" class="btn btn-danger w-100">
+                                        <i class="bi bi-trash"></i>
+                                        Удалить услугу
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Редактор -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-pencil"></i>
+                                Редактирование услуги
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="/admin/services/edit/{{ service.id }}">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Название услуги *</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           value="{{ service.name }}" required>
+                                    <div class="form-text">Минимум 3 символа</div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="category" class="form-label">Категория</label>
+                                        <select class="form-select" id="category" name="category">
+                                            <option value="">Без категории</option>
+                                            {% for cat in categories %}
+                                            <option value="{{ cat.value }}" 
+                                                    {% if service.category and service.category.value == cat.value %}selected{% endif %}>
+                                                {{ cat.display_name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="sort_order" class="form-label">Порядок сортировки</label>
+                                        <input type="number" class="form-control" id="sort_order" name="sort_order" 
+                                               value="{{ service.sort_order }}" min="0" max="999">
+                                        <div class="form-text">0 = в начале списка</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Описание услуги *</label>
+                                    <textarea class="form-control" id="description" name="description" rows="6" required>{{ service.description }}</textarea>
+                                    <div class="form-text">Минимум 10 символов</div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="keywords" class="form-label">Ключевые слова</label>
+                                        <input type="text" class="form-control" id="keywords" name="keywords"
+                                               value="{{ service.keywords or '' }}"
+                                               placeholder="Через запятую">
+                                        <div class="form-text">Для поиска в диалогах</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="price_info" class="form-label">Информация о цене</label>
+                                        <input type="text" class="form-control" id="price_info" name="price_info"
+                                               value="{{ service.price_info or '' }}"
+                                               placeholder="от 50,000 руб" maxlength="255">
+                                        <div class="form-text">Стоимость или диапазон цен</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                           {% if service.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        Активная услуга (отображается в боте)
+                                    </label>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="/admin/services/" class="btn btn-secondary">
+                                        <i class="bi bi-arrow-left"></i> Назад к списку
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> Сохранить изменения
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Функция для переключения sidebar на мобильных
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarMenu');
+        sidebar.classList.toggle('show');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar.classList.contains('show')) {
+            overlay.classList.add('show');
+        } else {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Скрываем sidebar при клике вне его на мобильных
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebarMenu');
+        const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
+</script>
+{% endblock %}
+
+

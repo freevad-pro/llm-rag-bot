@@ -21,7 +21,7 @@ class ExcelCatalogLoader:
     Загрузчик каталога товаров из Excel файлов.
     
     Поддерживает структуру из @product_idea.md:
-    - Обязательные поля: id, section name 1, section name 2, product name, description, category, article
+    - Обязательные поля: id, product name, description, category 1, category 2, category 3, article
     - Опциональные поля: photo_url, page_url
     - Любые другие колонки игнорируются
     """
@@ -29,8 +29,6 @@ class ExcelCatalogLoader:
     # Маппинг колонок Excel в атрибуты Product
     REQUIRED_COLUMNS = {
         'id': 'id',
-        'section name 1': 'section_name_1', 
-        'section name 2': 'section_name_2',
         'product name': 'product_name',
         'description': 'description',
         'category 1': 'category_1',

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- CodeMirror для подсветки синтаксиса -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/markdown/markdown.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">{{ page_title }}</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/prompts/" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i>
+                        <span class="d-none d-md-inline">К списку</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Уведомления -->
+        {% if success %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i>
+            {{ success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i>
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <!-- Справка -->
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-lightbulb"></i>
+                            Справка по созданию промптов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Системные промпты:</h6>
+                        <ul class="list-unstyled">
+                            <li><code>system_prompt</code> - Основной промпт</li>
+                            <li><code>product_search_prompt</code> - Поиск товаров</li>
+                            <li><code>service_answer_prompt</code> - Ответы об услугах</li>
+                            <li><code>general_conversation_prompt</code> - Общение</li>
+                            <li><code>lead_qualification_prompt</code> - Лиды</li>
+                        </ul>
+                        
+                        <h6 class="mt-3">Рекомендации:</h6>
+                        <ul class="small">
+                            <li>Используйте четкие инструкции</li>
+                            <li>Указывайте формат ответов</li>
+                            <li>Добавляйте примеры поведения</li>
+                            <li>Описывайте ограничения</li>
+                            <li>Тестируйте промпты перед применением</li>
+                        </ul>
+                        
+                        <div class="alert alert-info mt-3">
+                            <small>
+                                <i class="bi bi-info-circle"></i>
+                                <strong>Совет:</strong> Начните с базового промпта и постепенно улучшайте его на основе ответов AI.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Форма создания -->
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-plus-circle"></i>
+                            Создание нового промпта
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="/admin/prompts/create">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Техническое имя промпта *</label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       pattern="[a-z0-9_]+"
+                                       placeholder="Например: custom_greeting_prompt">
+                                <div class="form-text">
+                                    Используйте snake_case, только английские буквы, цифры и подчеркивания
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="display_name" class="form-label">Название для интерфейса</label>
+                                    <input 
+                                        type="text" 
+                                        id="display_name" 
+                                        name="display_name" 
+                                        class="form-control" 
+                                        maxlength="255"
+                                        placeholder="Красивое название промпта">
+                                    <div class="form-text">Человеко-читаемое название (необязательно)</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="description" class="form-label">Описание</label>
+                                    <textarea 
+                                        id="description" 
+                                        name="description" 
+                                        class="form-control" 
+                                        rows="3"
+                                        maxlength="1000"
+                                        placeholder="Краткое описание назначения промпта"></textarea>
+                                    <div class="form-text">Для чего используется промпт (необязательно)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="content" class="form-label">Содержание промпта *</label>
+                                <textarea 
+                                    id="content" 
+                                    name="content" 
+                                    class="form-control" 
+                                    rows="15" 
+                                    required
+                                    placeholder="Введите текст промпта..."></textarea>
+                                <div class="form-text">
+                                    Минимум 10 символов, максимум 10,000 символов
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check-circle"></i>
+                                        Создать промпт
+                                    </button>
+                                    <a href="/admin/prompts/" class="btn btn-outline-secondary ms-2">
+                                        <i class="bi bi-x-circle"></i>
+                                        Отмена
+                                    </a>
+                                </div>
+                                <div>
+                                    <span class="text-muted small">
+                                        Новый промпт будет создан с версией v1
+                                    </span>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Функция для переключения sidebar на мобильных
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarMenu');
+    sidebar.classList.toggle('show');
+}
+
+// Скрываем sidebar при клике вне его на мобильных
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebarMenu');
+    const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+    
+    if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+        sidebar.classList.remove('show');
+    }
+});
+
+// Инициализация CodeMirror для красивого редактора
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('content');
+    if (textarea) {
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'markdown',
+            theme: 'github',
+            lineNumbers: true,
+            lineWrapping: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            indentUnit: 2,
+            tabSize: 2,
+            placeholder: 'Введите текст промпта...'
+        });
+        
+        // Автоматическое изменение размера
+        editor.setSize(null, '400px');
+    }
+});
+</script>
+{% endblock %}

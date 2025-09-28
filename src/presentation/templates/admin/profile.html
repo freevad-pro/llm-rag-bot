@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+            <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h2 mb-0">{{ page_title }}</h1>
+                </div>
+                <div class="btn-toolbar">
+                    <div class="btn-group">
+                        <a href="/admin/" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-speedometer2"></i>
+                            <span class="d-none d-md-inline">Дашборд</span>
+                        </a>
+                        <a href="/admin/logout" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span class="d-none d-md-inline">Выйти</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Информация о профиле -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-person-circle"></i>
+                                Информация о пользователе
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <i class="bi bi-person-circle text-primary" style="font-size: 5rem;"></i>
+                                <h5 class="mt-2">{{ current_user.display_name }}</h5>
+                                <span class="badge bg-{{ 'danger' if current_user.is_admin else 'success' }} fs-6">
+                                    {{ 'Администратор' if current_user.is_admin else 'Менеджер' }}
+                                </span>
+                            </div>
+                            
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Логин:</strong></td>
+                                    <td>{{ current_user.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td>{{ current_user.email }}</td>
+                                </tr>
+                                {% if current_user.first_name %}
+                                <tr>
+                                    <td><strong>Имя:</strong></td>
+                                    <td>{{ current_user.first_name }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if current_user.last_name %}
+                                <tr>
+                                    <td><strong>Фамилия:</strong></td>
+                                    <td>{{ current_user.last_name }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td><strong>Роль:</strong></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if current_user.is_admin else 'success' }}">
+                                            {{ current_user.role.value }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% if current_user.created_at %}
+                                <tr>
+                                    <td><strong>Дата регистрации:</strong></td>
+                                    <td>{{ current_user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if current_user.last_login %}
+                                <tr>
+                                    <td><strong>Последний вход:</strong></td>
+                                    <td>{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Смена пароля -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm" id="password-change-form">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-shield-lock"></i>
+                                Смена пароля
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="password-messages">
+                                {% if error %}
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    {{ error }}
+                                </div>
+                                {% endif %}
+
+                                {% if message %}
+                                <div class="alert alert-success" role="alert">
+                                    <i class="bi bi-check-circle"></i>
+                                    {{ message }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <form hx-post="/admin/change-password" hx-target="#password-messages" hx-swap="innerHTML">
+                                <div class="mb-3">
+                                    <label for="old_password" class="form-label">Старый пароль</label>
+                                    <input type="password" class="form-control" id="old_password" name="old_password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new_password" class="form-label">Новый пароль</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                    <div class="form-text">Минимум 8 символов</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirm_password" class="form-label">Подтвердите новый пароль</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-shield-check"></i>
+                                    Сменить пароль
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Права доступа -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-shield-check"></i>
+                                Права доступа
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Управление каталогом
+                                            {% if current_user.can_manage_catalog() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Редактирование промптов
+                                            {% if current_user.can_edit_prompts() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Управление услугами
+                                            {% if current_user.can_manage_services() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Базовая статистика
+                                            {% if current_user.can_view_basic_stats() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Просмотр логов
+                                            {% if current_user.can_access_logs() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Управление БД
+                                            {% if current_user.can_manage_database() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Настройки LLM
+                                            {% if current_user.can_switch_llm_provider() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Полная статистика
+                                            {% if current_user.can_view_full_stats() %}
+                                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-x"></i></span>
+                                            {% endif %}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Функция для переключения sidebar на мобильных
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarMenu');
+    sidebar.classList.toggle('show');
+}
+
+// Скрываем sidebar при клике вне его на мобильных
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebarMenu');
+    const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
+    
+    if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+        sidebar.classList.remove('show');
+    }
+});
+</script>
+{% endblock %}

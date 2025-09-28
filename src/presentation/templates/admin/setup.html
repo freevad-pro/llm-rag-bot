@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-gear text-primary" style="font-size: 3rem;"></i>
+                        <h4 class="mt-2">Первоначальная настройка</h4>
+                        <p class="text-muted">Создание первого администратора</p>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Инструкции:</strong>
+                        <ol class="mt-2 mb-0">
+                            <li>Найдите ваш Telegram ID (напишите @userinfobot в Telegram)</li>
+                            <li>Введите его в поле ниже</li>
+                            <li>Нажмите "Создать администратора"</li>
+                            <li>Перейдите на страницу входа</li>
+                        </ol>
+                    </div>
+                    
+                    <form id="setup-form">
+                        <div class="mb-3">
+                            <label for="telegram_id" class="form-label">Ваш Telegram ID:</label>
+                            <input type="number" class="form-control" id="telegram_id" name="telegram_id" 
+                                   placeholder="Например: 123456789" required>
+                            <div class="form-text">
+                                Узнать ID: напишите @userinfobot в Telegram
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-person-plus"></i>
+                            Создать администратора
+                        </button>
+                    </form>
+                    
+                    <div id="result" class="mt-3"></div>
+                </div>
+                
+                <div class="card-footer text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-exclamation"></i>
+                        Только для демонстрации! В production используйте безопасную настройку.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('setup-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const button = this.querySelector('button[type="submit"]');
+    const result = document.getElementById('result');
+    
+    // Показываем индикатор загрузки
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Создание...';
+    
+    try {
+        const response = await fetch('/admin/setup-admin', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            result.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i>
+                    ${data.message}! 
+                    <hr>
+                    <a href="/admin/login" class="btn btn-success btn-sm">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Перейти к входу
+                    </a>
+                </div>
+            `;
+            this.style.display = 'none';
+        } else {
+            result.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    ${data.error}
+                    <hr>
+                    <a href="/admin/login" class="btn btn-primary btn-sm">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Перейти к входу
+                    </a>
+                </div>
+            `;
+        }
+    } catch (error) {
+        result.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                Ошибка: ${error.message}
+            </div>
+        `;
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="bi bi-person-plus"></i> Создать администратора';
+    }
+});
+</script>
+{% endblock %}
+
+

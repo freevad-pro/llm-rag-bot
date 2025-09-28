@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Админ-панель{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-person-plus"></i> {{ page_title }}</h2>
+        <a href="/admin/users" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+
+    <!-- Сообщения -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ 'danger' if message.type == 'error' else message.type }} alert-dismissible fade show" role="alert">
+                {{ message.text }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Форма создания пользователя -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-plus"></i> Создание нового пользователя
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/users/create">
+                        <div class="row">
+                            <!-- Имя пользователя -->
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">
+                                    <i class="bi bi-person"></i> Имя пользователя *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="username" 
+                                       name="username" 
+                                       value=""
+                                       autocomplete="off"
+                                       required 
+                                       minlength="3"
+                                       maxlength="50"
+                                       placeholder="Введите имя пользователя">
+                                <div class="form-text">Минимум 3 символа, только латинские буквы, цифры и подчеркивания</div>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="bi bi-envelope"></i> Email адрес *
+                                </label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="email" 
+                                       name="email" 
+                                       value=""
+                                       autocomplete="off"
+                                       required 
+                                       placeholder="user@example.com">
+                                <div class="form-text">Будет использоваться для восстановления пароля</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Пароль -->
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="bi bi-lock"></i> Пароль *
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" 
+                                           class="form-control" 
+                                           id="password" 
+                                           name="password" 
+                                           value=""
+                                           autocomplete="new-password"
+                                           required 
+                                           minlength="8"
+                                           placeholder="Введите пароль">
+                                    <button class="btn btn-outline-secondary" 
+                                            type="button" 
+                                            onclick="togglePassword()">
+                                        <i class="bi bi-eye" id="password-icon"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">Минимум 8 символов</div>
+                            </div>
+
+                            <!-- Роль -->
+                            <div class="col-md-6 mb-3">
+                                <label for="role" class="form-label">
+                                    <i class="bi bi-shield-check"></i> Роль *
+                                </label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="">Выберите роль</option>
+                                    {% for role in roles %}
+                                        <option value="{{ role.value }}">
+                                            {% if role.value == 'ADMIN' %}
+                                                <i class="bi bi-shield-check"></i> Администратор
+                                            {% else %}
+                                                <i class="bi bi-person-gear"></i> Менеджер
+                                            {% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    <strong>Администратор:</strong> полный доступ ко всем функциям<br>
+                                    <strong>Менеджер:</strong> ограниченный доступ
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Статус -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active" 
+                                       checked>
+                                <label class="form-check-label" for="is_active">
+                                    <i class="bi bi-check-circle"></i> Активировать пользователя сразу после создания
+                                </label>
+                            </div>
+                            <div class="form-text">Неактивные пользователи не смогут войти в систему</div>
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="d-flex justify-content-between">
+                            <a href="/admin/users" class="btn btn-secondary">
+                                <i class="bi bi-x-lg"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> Создать пользователя
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const passwordIcon = document.getElementById('password-icon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordIcon.className = 'bi bi-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        passwordIcon.className = 'bi bi-eye';
+    }
+}
+
+// Валидация формы
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    
+    // Проверка имени пользователя
+    usernameInput.addEventListener('input', function() {
+        const username = this.value;
+        const regex = /^[a-zA-Z0-9_]+$/;
+        
+        if (username && !regex.test(username)) {
+            this.setCustomValidity('Только латинские буквы, цифры и подчеркивания');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // Проверка сложности пароля
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        
+        if (password.length >= 8) strength++;
+        if (/[a-z]/.test(password)) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^a-zA-Z0-9]/.test(password)) strength++;
+        
+        // Показываем индикатор сложности
+        let strengthText = '';
+        let strengthClass = '';
+        
+        if (strength < 2) {
+            strengthText = 'Слабый пароль';
+            strengthClass = 'text-danger';
+        } else if (strength < 4) {
+            strengthText = 'Средний пароль';
+            strengthClass = 'text-warning';
+        } else {
+            strengthText = 'Сильный пароль';
+            strengthClass = 'text-success';
+        }
+        
+        // Обновляем или создаем элемент с индикатором
+        let strengthIndicator = document.getElementById('password-strength');
+        if (!strengthIndicator) {
+            strengthIndicator = document.createElement('div');
+            strengthIndicator.id = 'password-strength';
+            strengthIndicator.className = 'form-text';
+            passwordInput.parentNode.parentNode.appendChild(strengthIndicator);
+        }
+        
+        strengthIndicator.innerHTML = `<span class="${strengthClass}">${strengthText}</span>`;
+    });
+});
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.form-label {
+    font-weight: 600;
+}
+
+.form-text {
+    font-size: 0.875em;
+}
+
+.btn-outline-secondary {
+    border-color: #ced4da;
+}
+
+.input-group .btn {
+    z-index: 3;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">Статус каталога</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/catalog/upload" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-upload"></i>
+                        <span class="d-none d-md-inline">Загрузить</span>
+                    </a>
+                    <a href="/admin/catalog/history" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-clock-history"></i>
+                        <span class="d-none d-md-inline">История</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row">
+                
+                <!-- Текущий статус -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-activity"></i>
+                                Текущий статус переиндексации
+                            </h5>
+                        </div>
+                        <div class="card-body" id="statusContainer">
+                            
+                            {% if current_status %}
+                            <div class="status-info">
+                                <!-- Статус -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6>Статус:</h6>
+                                    <span class="badge fs-6" id="statusBadge">
+                                        {% if current_status.status == 'processing' %}
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-hourglass-split"></i> Обработка
+                                            </span>
+                                        {% elif current_status.status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle"></i> Завершено
+                                            </span>
+                                        {% elif current_status.status == 'failed' %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> Ошибка
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-question-circle"></i> {{ current_status.status }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                
+                                <!-- Прогресс-бар -->
+                                {% if current_status.status == 'processing' %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Прогресс:</span>
+                                        <span id="progressText">{{ current_status.progress or 0 }}%</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" 
+                                             id="progressBar"
+                                             style="width: {{ current_status.progress or 0 }}%">
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Детали -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Файл:</strong><br>
+                                        <span class="text-muted">{{ current_status.filename or 'Не указан' }}</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Товаров обработано:</strong><br>
+                                        <span class="text-muted" id="productsCount">{{ current_status.products_count or 0 }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-2">
+                                    <div class="col-md-6">
+                                        <strong>Начато:</strong><br>
+                                        <span class="text-muted">{{ current_status.started_at | moscow_datetime }}</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        {% if current_status.completed_at %}
+                                        <strong>Завершено:</strong><br>
+                                        <span class="text-success fw-bold">{{ current_status.completed_at | moscow_datetime }}</span>
+                                        {% elif current_status.estimated_completion %}
+                                        <strong>Ожидаемое завершение:</strong><br>
+                                        <span class="text-muted" id="estimatedCompletion">
+                                            {{ current_status.estimated_completion | moscow_datetime }}
+                                        </span>
+                                        {% else %}
+                                        <strong>Статус:</strong><br>
+                                        <span class="text-muted">Готов к работе</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Дополнительная информация о времени -->
+                                {% if current_status.completed_at and current_status.started_at %}
+                                <div class="row text-start mt-2">
+                                    <div class="col-12">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i>
+                                            Время индексации: 
+                                            <span id="indexingDuration">...</span>
+                                        </small>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Сообщение -->
+                                {% if current_status.message %}
+                                <div class="mt-3">
+                                    <strong>Сообщение:</strong><br>
+                                    <span class="text-muted" id="statusMessage">{{ current_status.message }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Ошибка -->
+                                {% if current_status.status == 'failed' and current_status.error_message %}
+                                <div class="alert alert-danger mt-3">
+                                    <strong>Ошибка:</strong><br>
+                                    {{ current_status.error_message }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% else %}
+                            <!-- Нет активной переиндексации -->
+                            <div class="text-center py-4">
+                                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                                <h5 class="mt-3">Переиндексация не выполняется</h5>
+                                <p class="text-muted">Каталог готов к работе</p>
+                                <a href="/admin/catalog/upload" class="btn btn-primary">
+                                    <i class="bi bi-upload"></i>
+                                    Загрузить новый каталог
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Боковая панель -->
+                <div class="col-lg-4">
+                    
+                    <!-- Быстрые действия -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-lightning"></i>
+                                Действия
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="/admin/catalog/upload" class="btn btn-outline-primary">
+                                    <i class="bi bi-upload"></i>
+                                    Загрузить новый каталог
+                                </a>
+                                
+                                <a href="/admin/catalog/history" class="btn btn-outline-secondary">
+                                    <i class="bi bi-clock-history"></i>
+                                    Посмотреть историю
+                                </a>
+                                
+                                <button class="btn btn-outline-info" onclick="refreshStatus()">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                    Обновить статус
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Последние версии -->
+                    {% if version_history %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-clock-history"></i>
+                                Последние версии
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                {% for version in version_history[:5] %}
+                                <div class="timeline-item">
+                                    <div class="timeline-marker 
+                                        {% if version.status == 'active' %}bg-success
+                                        {% elif version.status == 'completed' %}bg-info
+                                        {% elif version.status == 'failed' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                    </div>
+                                    <div class="timeline-content">
+                                        <h6 class="timeline-title">{{ version.filename }}</h6>
+                                        <p class="timeline-text text-muted small">
+                                            {{ version.created_at | moscow_datetime }}<br>
+                                            Статус: 
+                                            <span class="badge 
+                                                {% if version.status == 'active' %}bg-success
+                                                {% elif version.status == 'completed' %}bg-info
+                                                {% elif version.status == 'failed' %}bg-danger
+                                                {% else %}bg-secondary{% endif %}">
+                                                {{ version.status }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="text-center mt-3">
+                                <a href="/admin/catalog/history" class="btn btn-sm btn-outline-secondary">
+                                    Показать все
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Автообновление статуса каждые 5 секунд для активной переиндексации
+let statusUpdateInterval;
+
+function startStatusUpdates() {
+    statusUpdateInterval = setInterval(refreshStatus, 5000);
+}
+
+function stopStatusUpdates() {
+    if (statusUpdateInterval) {
+        clearInterval(statusUpdateInterval);
+        statusUpdateInterval = null;
+    }
+}
+
+async function refreshStatus() {
+    try {
+        const response = await fetch('/admin/catalog/status/api');
+        const data = await response.json();
+        
+        updateStatusDisplay(data);
+        
+        // Останавливаем обновления если процесс завершен
+        if (data.status !== 'processing') {
+            stopStatusUpdates();
+        }
+        
+    } catch (error) {
+        console.error('Ошибка обновления статуса:', error);
+    }
+}
+
+function updateStatusDisplay(data) {
+    // Обновляем badge статуса
+    const statusBadge = document.getElementById('statusBadge');
+    if (statusBadge) {
+        let badgeClass = 'bg-secondary';
+        let icon = 'bi-question-circle';
+        
+        switch (data.status) {
+            case 'processing':
+                badgeClass = 'bg-warning';
+                icon = 'bi-hourglass-split';
+                break;
+            case 'completed':
+                badgeClass = 'bg-success';
+                icon = 'bi-check-circle';
+                break;
+            case 'failed':
+                badgeClass = 'bg-danger';
+                icon = 'bi-exclamation-triangle';
+                break;
+        }
+        
+        statusBadge.innerHTML = `<span class="badge ${badgeClass}"><i class="${icon}"></i> ${data.status}</span>`;
+    }
+    
+    // Обновляем прогресс-бар
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    if (progressBar && progressText) {
+        progressBar.style.width = `${data.progress}%`;
+        progressText.textContent = `${data.progress}%`;
+    }
+    
+    // Обновляем количество товаров
+    const productsCount = document.getElementById('productsCount');
+    if (productsCount) {
+        productsCount.textContent = data.products_count || 0;
+    }
+    
+    // Обновляем время завершения
+    const estimatedCompletion = document.getElementById('estimatedCompletion');
+    if (estimatedCompletion) {
+        estimatedCompletion.textContent = data.estimated_completion || 'Рассчитывается...';
+    }
+    
+    // Обновляем сообщение
+    const statusMessage = document.getElementById('statusMessage');
+    if (statusMessage && data.message) {
+        statusMessage.textContent = data.message;
+    }
+}
+
+// Запускаем автообновление при загрузке страницы если есть активная переиндексация
+document.addEventListener('DOMContentLoaded', function() {
+    {% if current_status and current_status.status == 'processing' %}
+    startStatusUpdates();
+    {% endif %}
+});
+
+// Останавливаем обновления при уходе со страницы
+window.addEventListener('beforeunload', function() {
+    stopStatusUpdates();
+});
+
+// Функция для переключения sidebar на мобильных
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarMenu');
+    sidebar.classList.toggle('show');
+}
+
+// Функция для расчета времени индексации
+function calculateIndexingDuration() {
+    const durationElement = document.getElementById('indexingDuration');
+    if (!durationElement) return;
+    
+    // Получаем данные из API
+    fetch('/admin/catalog/status/api')
+        .then(response => response.json())
+        .then(data => {
+            if (data.started_at && data.completed_at) {
+                const startTime = new Date(data.started_at);
+                const endTime = new Date(data.completed_at);
+                const durationMs = endTime - startTime;
+                
+                // Конвертируем в читаемый формат
+                const minutes = Math.floor(durationMs / (1000 * 60));
+                const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+                
+                let durationText = '';
+                if (minutes > 0) {
+                    durationText = `${minutes} мин ${seconds} сек`;
+                } else {
+                    durationText = `${seconds} сек`;
+                }
+                
+                durationElement.textContent = durationText;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при расчете времени индексации:', error);
+            durationElement.textContent = 'Не удалось рассчитать';
+        });
+}
+
+// Вызываем функцию при загрузке страницы
+document.addEventListener('DOMContentLoaded', calculateIndexingDuration);
+</script>
+
+<style>
+/* Стили для timeline */
+.timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -25px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.timeline-content {
+    padding-left: 10px;
+}
+
+.timeline-title {
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+}
+
+.timeline-text {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+}
+
+/* Стили для прогресс-бара */
+.progress {
+    height: 8px;
+}
+
+/* Стили для статус badge */
+.badge.fs-6 {
+    font-size: 0.9rem !important;
+}
+</style>
+{% endblock %}

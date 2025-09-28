@@ -13,14 +13,12 @@ class Product:
     Сущность товара из каталога.
     
     Поля соответствуют структуре Excel файла из @product_idea.md:
-    - Обязательные: id, section_name_1, section_name_2, product_name, description, category_1, category_2, category_3, article
+    - Обязательные: id, product_name, description, category_1, category_2, category_3, article
     - Опциональные: photo_url, page_url
     """
     
     # Обязательные поля
     id: str
-    section_name_1: str  # наименование раздела
-    section_name_2: str  # наименование подраздела  
     product_name: str    # наименование товара
     description: str     # описание
     category_1: str      # категория 1-го уровня
@@ -40,8 +38,6 @@ class Product:
         search_parts = [
             self.product_name,
             self.description,
-            self.section_name_1,
-            self.section_name_2,
             self.category_1,
             self.category_2,
             self.category_3,

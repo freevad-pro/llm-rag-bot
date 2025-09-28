@@ -566,3 +566,202 @@ class CatalogSearchService(BaseSearchService):
                 documents=source_data["documents"],
                 metadatas=source_data["metadatas"]
             )
+    
+    # Методы для blue-green deployment
+    
+    async def create_collection(self, collection_name: str) -> None:
+        """
+        Создает новую коллекцию для blue-green deployment.
+        
+        Args:
+            collection_name: Имя коллекции
+        """
+        try:
+            collection = self._client.create_collection(
+                name=collection_name,
+                embedding_function=self._embedding_function
+            )
+            self._logger.info(f"Создана коллекция: {collection_name}")
+            
+        except Exception as e:
+            # Если коллекция уже существует, удаляем и создаем заново
+            try:
+                self._client.delete_collection(collection_name)
+                collection = self._client.create_collection(
+                    name=collection_name,
+                    embedding_function=self._embedding_function
+                )
+                self._logger.info(f"Пересоздана коллекция: {collection_name}")
+            except Exception as create_error:
+                self._logger.error(f"Ошибка создания коллекции {collection_name}: {create_error}")
+                raise create_error
+    
+    async def index_products_batch(self, products: list, collection_name: str) -> None:
+        """
+        Индексирует батч товаров в указанную коллекцию.
+        
+        Args:
+            products: Список товаров для индексации
+            collection_name: Имя коллекции
+        """
+        try:
+            collection = self._client.get_collection(
+                name=collection_name,
+                embedding_function=self._embedding_function
+            )
+            
+            # Подготавливаем данные для индексации
+            ids = []
+            documents = []
+            metadatas = []
+            
+            for product in products:
+                # Создаем уникальный ID
+                product_id = f"product_{product.id}"
+                ids.append(product_id)
+                
+                # Создаем документ для поиска
+                document = self._create_search_document(product)
+                documents.append(document)
+                
+                # Создаем метаданные
+                metadata = self._create_product_metadata(product)
+                metadatas.append(metadata)
+            
+            # Добавляем в коллекцию
+            collection.add(
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas
+            )
+            
+            self._logger.debug(f"Проиндексировано {len(products)} товаров в коллекцию {collection_name}")
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка индексации батча в коллекцию {collection_name}: {e}")
+            raise e
+    
+    async def collection_exists(self, collection_name: str) -> bool:
+        """
+        Проверяет существование коллекции.
+        
+        Args:
+            collection_name: Имя коллекции
+            
+        Returns:
+            True если коллекция существует, False иначе
+        """
+        try:
+            collections = self._client.list_collections()
+            collection_names = [c.name for c in collections]
+            return collection_name in collection_names
+        except Exception as e:
+            self._logger.error(f"Ошибка проверки существования коллекции {collection_name}: {e}")
+            return False
+    
+    async def rename_collection(self, old_name: str, new_name: str) -> None:
+        """
+        Переименовывает коллекцию (через копирование данных).
+        
+        Args:
+            old_name: Старое имя коллекции
+            new_name: Новое имя коллекции
+        """
+        try:
+            # Проверяем существование старой коллекции
+            if not await self.collection_exists(old_name):
+                raise ValueError(f"Коллекция {old_name} не существует")
+            
+            # Получаем старую коллекцию
+            old_collection = self._client.get_collection(
+                name=old_name,
+                embedding_function=self._embedding_function
+            )
+            
+            # Создаем новую коллекцию
+            await self.create_collection(new_name)
+            new_collection = self._client.get_collection(
+                name=new_name,
+                embedding_function=self._embedding_function
+            )
+            
+            # Копируем данные
+            await self._copy_collection_data(old_collection, new_collection)
+            
+            # Удаляем старую коллекцию
+            self._client.delete_collection(old_name)
+            
+            self._logger.info(f"Коллекция переименована: {old_name} -> {new_name}")
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка переименования коллекции {old_name} -> {new_name}: {e}")
+            raise e
+    
+    async def delete_collection(self, collection_name: str) -> None:
+        """
+        Удаляет коллекцию.
+        
+        Args:
+            collection_name: Имя коллекции для удаления
+        """
+        try:
+            self._client.delete_collection(collection_name)
+            self._logger.info(f"Удалена коллекция: {collection_name}")
+            
+        except Exception as e:
+            self._logger.warning(f"Ошибка удаления коллекции {collection_name}: {e}")
+            # Не поднимаем исключение, так как коллекция может не существовать
+    
+    def _create_search_document(self, product: Product) -> str:
+        """
+        Создает текстовый документ для поиска из товара.
+        
+        Args:
+            product: Товар
+            
+        Returns:
+            Текстовый документ для индексации
+        """
+        # Собираем все текстовые поля товара
+        parts = []
+        
+        if product.product_name:
+            parts.append(product.product_name)
+        
+        if product.description:
+            parts.append(product.description)
+        
+        if product.article:
+            parts.append(f"Артикул: {product.article}")
+        
+        if product.category_1:
+            parts.append(f"Категория: {product.category_1}")
+        
+        if product.category_2:
+            parts.append(f"Подкатегория: {product.category_2}")
+        
+        if product.category_3:
+            parts.append(f"Тип: {product.category_3}")
+        
+        return " | ".join(parts)
+    
+    def _create_product_metadata(self, product: Product) -> dict:
+        """
+        Создает метаданные товара для Chroma.
+        
+        Args:
+            product: Товар
+            
+        Returns:
+            Словарь с метаданными
+        """
+        return {
+            "id": str(product.id),
+            "name": product.product_name or "",
+            "article": product.article or "",
+            "category_1": product.category_1 or "",
+            "category_2": product.category_2 or "",
+            "category_3": product.category_3 or "",
+            "photo_url": product.photo_url or "",
+            "page_url": product.page_url or ""
+        }

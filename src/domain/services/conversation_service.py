@@ -137,16 +137,22 @@ class ConversationService:
         chat_id: int,
         content: str,
         session: AsyncSession,
+        llm_provider: Optional[str] = None,
+        tokens_used: Optional[int] = None,
+        processing_time_ms: Optional[int] = None,
         extra_data: Optional[str] = None
     ) -> Optional[int]:
         """
-        Сохраняет ответ ассистента.
+        Сохраняет ответ ассистента с метриками использования.
         
         Args:
             chat_id: ID чата пользователя
             content: Содержимое ответа
             session: Сессия базы данных
-            extra_data: Дополнительные данные (метрики LLM и т.д.)
+            llm_provider: Провайдер LLM (openai, yandexgpt)
+            tokens_used: Количество использованных токенов
+            processing_time_ms: Время обработки в миллисекундах
+            extra_data: Дополнительные данные как JSON строка
             
         Returns:
             ID созданного сообщения или None при ошибке
@@ -166,11 +172,14 @@ class ConversationService:
                 user.id, chat_id, session
             )
             
-            # Создаем сообщение
+            # Создаем сообщение с метриками
             message = Message(
                 conversation_id=conversation.id,
                 role="assistant",
                 content=content,
+                llm_provider=llm_provider,
+                tokens_used=tokens_used,
+                processing_time_ms=processing_time_ms,
                 extra_data=extra_data
             )
             
@@ -178,7 +187,24 @@ class ConversationService:
             await session.commit()
             await session.refresh(message)
             
-            self._logger.debug(f"Сохранен ответ ассистента ID {message.id}")
+            # Обновляем статистику использования токенов
+            if llm_provider and tokens_used and tokens_used > 0:
+                from .usage_statistics_service import usage_statistics_service
+                # Определяем модель из extra_data или используем дефолтную
+                model = "unknown"
+                if extra_data:
+                    import json
+                    try:
+                        data = json.loads(extra_data)
+                        model = data.get("model", "unknown")
+                    except:
+                        pass
+                
+                await usage_statistics_service.add_tokens_usage(
+                    session, llm_provider, model, tokens_used
+                )
+            
+            self._logger.debug(f"Сохранен ответ ассистента ID {message.id}, токенов: {tokens_used}")
             return message.id
             
         except Exception as e:
@@ -211,7 +237,7 @@ class ConversationService:
                     Conversation.user_id == user_id,
                     Conversation.status == "active"
                 )
-            ).order_by(desc(Conversation.started_at))
+            ).order_by(desc(Conversation.created_at))
             
             conversation_result = await session.execute(conversation_query)
             conversation = conversation_result.scalar_one_or_none()
@@ -225,7 +251,7 @@ class ConversationService:
                 user_id=user_id,
                 platform="telegram",
                 status="active",
-                started_at=datetime.utcnow()
+                created_at=datetime.utcnow()
             )
             
             session.add(new_conversation)
@@ -271,13 +297,13 @@ class ConversationService:
                     Conversation.user_id == user.id,
                     Conversation.status == "active"
                 )
-            ).order_by(desc(Conversation.started_at))
+            ).order_by(desc(Conversation.created_at))
             
             conversation_result = await session.execute(conversation_query)
             conversation = conversation_result.scalar_one_or_none()
             
             if not conversation:
-                return {"messages_count": 0, "started_at": None}
+                return {"messages_count": 0, "created_at": None}
             
             # Подсчитываем сообщения
             messages_count_query = select(Message.id).where(
@@ -289,7 +315,7 @@ class ConversationService:
             return {
                 "conversation_id": conversation.id,
                 "messages_count": messages_count,
-                "started_at": conversation.started_at.isoformat(),
+                "created_at": conversation.created_at.isoformat(),
                 "platform": conversation.platform,
                 "status": conversation.status
             }

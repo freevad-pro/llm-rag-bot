@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from .query_classifier import QueryType, classify_user_query
 from .conversation_service import conversation_service
-from ...infrastructure.database.models import CompanyService
+from ...infrastructure.database.models import CompanyService, CompanyInfo
 from ...infrastructure.search.catalog_service import CatalogSearchService
 from ...infrastructure.llm import llm_service
 
@@ -67,10 +67,27 @@ class SearchOrchestrator:
                 query_type, user_query, conversation_context, session
             )
             
-            # 5. Сохраняем ответ ассистента
-            await conversation_service.save_assistant_message(
-                chat_id, response_data["response"], session
-            )
+            # 5. Сохраняем ответ ассистента с метриками
+            llm_response = response_data.get("llm_response")
+            if llm_response and hasattr(llm_response, 'usage'):
+                # Извлекаем метрики из LLMResponse
+                tokens_used = llm_response.usage.get("total_tokens", 0) if llm_response.usage else 0
+                processing_time = response_data.get("processing_time_ms", 0)
+                
+                await conversation_service.save_assistant_message(
+                    chat_id=chat_id,
+                    content=response_data["response"],
+                    session=session,
+                    llm_provider=llm_response.provider,
+                    tokens_used=tokens_used,
+                    processing_time_ms=processing_time,
+                    extra_data=f'{{"model": "{llm_response.model}", "usage": {llm_response.usage}}}'
+                )
+            else:
+                # Fallback для случаев без LLM
+                await conversation_service.save_assistant_message(
+                    chat_id, response_data["response"], session
+                )
             
             # 6. Формируем финальный ответ
             return {
@@ -170,6 +187,9 @@ class SearchOrchestrator:
                 }
             else:
                 # Если товары не найдены
+                import time
+                start_time = time.time()
+                
                 response = await llm_service.generate_contextual_response(
                     user_query,
                     conversation_context,
@@ -180,8 +200,12 @@ class SearchOrchestrator:
                     session=session
                 )
                 
+                processing_time = int((time.time() - start_time) * 1000) if 'start_time' in locals() else 0
+                
                 return {
-                    "response": response,
+                    "response": response.content if hasattr(response, 'content') else str(response),
+                    "llm_response": response if hasattr(response, 'usage') else None,
+                    "processing_time_ms": processing_time,
                     "metadata": {
                         "search_results_count": 0,
                         "source": "llm_fallback"
@@ -254,13 +278,25 @@ class SearchOrchestrator:
     ) -> Dict[str, Any]:
         """Обрабатывает запрос о компании."""
         try:
-            # TODO: В будущем здесь будет загрузка файла "О компании" из БД
-            # Пока используем заглушку
-            company_info = """
-            Наша компания специализируется на поставке оборудования и запчастей.
-            Мы работаем с широким каталогом товаров и предоставляем профессиональные консультации.
-            Для получения подробной информации свяжитесь с нашими менеджерами.
-            """
+            # Загружаем активную информацию о компании из БД
+            company_info_query = select(CompanyInfo).where(
+                CompanyInfo.is_active == True
+            ).order_by(CompanyInfo.created_at.desc())
+            
+            result = await session.execute(company_info_query)
+            company_info_record = result.scalar_one_or_none()
+            
+            if company_info_record:
+                company_info = company_info_record.content
+                self._logger.info(f"Загружена информация о компании из файла: {company_info_record.original_filename}")
+            else:
+                # Fallback на базовую информацию если файл не загружен
+                company_info = """
+                Наша компания специализируется на поставке оборудования и запчастей.
+                Мы работаем с широким каталогом товаров и предоставляем профессиональные консультации.
+                Для получения подробной информации свяжитесь с нашими менеджерами.
+                """
+                self._logger.warning("Файл с информацией о компании не найден, используется базовая информация")
             
             # Генерируем ответ о компании
             response = await llm_service.generate_company_info_response(
@@ -270,7 +306,9 @@ class SearchOrchestrator:
             return {
                 "response": response,
                 "metadata": {
-                    "source": "company_info"
+                    "source": "company_info",
+                    "has_custom_info": company_info_record is not None,
+                    "info_file": company_info_record.original_filename if company_info_record else None
                 },
                 "suggested_actions": ["contact_manager", "learn_services"]
             }

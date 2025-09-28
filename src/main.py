@@ -3,8 +3,13 @@
 Health check endpoint и базовая структура
 """
 import os
-from fastapi import FastAPI, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from contextlib import asynccontextmanager
 from datetime import datetime
 import asyncio
@@ -16,6 +21,40 @@ from src.config.settings import settings
 from src.infrastructure.database.connection import create_tables, get_db_health
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
 from src.application.telegram.bot import start_bot, stop_bot
+from src.application.web.routes.admin import admin_router
+from src.application.web.routes.prompts import prompts_router
+from src.application.web.routes.services import services_router
+from src.application.web.routes.categories import categories_router
+from src.application.web.routes.logs import logs_router
+from src.application.web.routes.users import router as users_router
+from src.application.web.routes.catalog import catalog_router
+from src.application.web.routes.company_info import router as company_info_router
+from src.application.web.routes.database import router as database_router
+from src.application.web.routes.system_settings import router as system_settings_router
+from src.application.web.routes.usage_statistics import router as usage_statistics_router
+
+
+class TelegramCSPMiddleware(BaseHTTPMiddleware):
+    """Middleware для настройки CSP headers для работы с Telegram Login Widget"""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Для админ-панели полностью отключаем CSP ограничения
+        if request.url.path.startswith("/admin"):
+            # Удаляем все ограничительные headers
+            headers_to_remove = [
+                "content-security-policy", 
+                "x-frame-options", 
+                "x-content-type-options",
+                "referrer-policy"
+            ]
+            
+            for header in headers_to_remove:
+                if header in response.headers:
+                    del response.headers[header]
+            
+        return response
 
 
 @asynccontextmanager
@@ -65,6 +104,58 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan
 )
+
+# Exception handler для обработки редиректов при неавторизованном доступе
+@app.exception_handler(HTTPException)
+async def auth_exception_handler(request: Request, exc: HTTPException):
+    """
+    Обрабатывает исключения авторизации и делает редирект для HTML запросов
+    """
+    # Проверяем, это ли запрос на авторизацию и HTML ли это
+    if (exc.status_code == 401 and 
+        request.url.path.startswith("/admin") and 
+        not request.url.path.startswith("/admin/login") and
+        request.headers.get("accept", "").startswith("text/html")):
+        
+        return RedirectResponse(url="/admin/login", status_code=302)
+    
+    # Для всех остальных случаев возвращаем стандартный JSON ответ
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+# Middleware
+app.add_middleware(TelegramCSPMiddleware)
+
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=settings.secret_key or "change-me-in-production"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В production ограничить
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Подключение статических файлов
+app.mount("/static", StaticFiles(directory="src/presentation/static"), name="static")
+
+# Подключение роутеров
+app.include_router(admin_router)
+app.include_router(prompts_router)
+app.include_router(services_router)
+app.include_router(categories_router)
+app.include_router(logs_router)
+app.include_router(users_router)
+app.include_router(catalog_router)
+app.include_router(company_info_router)
+app.include_router(database_router)
+app.include_router(system_settings_router)
+app.include_router(usage_statistics_router)
 
 
 @app.get("/health")
@@ -121,7 +212,8 @@ async def root():
         "message": "LLM RAG Bot API",
         "version": "0.1.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "admin": "/admin/"
     }
 
 

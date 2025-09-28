@@ -36,7 +36,7 @@ async def get_or_create_conversation(
                 Conversation.chat_id == chat_id,
                 Conversation.status == "active"
             )
-            .order_by(desc(Conversation.started_at))
+            .order_by(desc(Conversation.created_at))
         )
         conversation = conv_result.scalar_one_or_none()
         
