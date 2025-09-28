@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 import httpx
 
 from .base import LLMProvider, LLMMessage, LLMResponse, LLMProviderError, LLMTimeoutError, LLMRateLimitError
+from ...utils.text_utils import safe_format
 
 
 class YandexGPTProvider(LLMProvider):
@@ -173,7 +174,7 @@ CONTACT - желание связаться с менеджером
         
         try:
             messages = [
-                LLMMessage(role="user", content=classification_prompt.format(query=query))
+                LLMMessage(role="user", content=safe_format(classification_prompt, query=query))
             ]
             
             response = await self.generate_response(

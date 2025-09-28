@@ -10,6 +10,7 @@ import openai
 from openai import AsyncOpenAI
 
 from .base import LLMProvider, LLMMessage, LLMResponse, LLMProviderError, LLMTimeoutError, LLMRateLimitError
+from ...utils.text_utils import safe_format
 
 
 class OpenAIProvider(LLMProvider):
@@ -139,7 +140,7 @@ CONTACT - желание связаться с менеджером
         
         try:
             messages = [
-                LLMMessage(role="user", content=classification_prompt.format(query=query))
+                LLMMessage(role="user", content=safe_format(classification_prompt, query=query))
             ]
             
             response = await self.generate_response(

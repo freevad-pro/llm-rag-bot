@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..factory import llm_factory
 from ..providers import LLMMessage, LLMResponse, LLMError
 from .prompt_manager import prompt_manager
+from ...utils.text_utils import safe_format
 
 
 class LLMService:
@@ -142,7 +143,8 @@ class LLMService:
             formatted_results = self._format_search_results(search_results)
             
             # Подставляем данные в промпт
-            formatted_prompt = product_prompt.format(
+            formatted_prompt = safe_format(
+                product_prompt,
                 search_results=formatted_results,
                 user_query=user_query
             )
@@ -188,7 +190,8 @@ class LLMService:
             formatted_services = self._format_services_info(services_info)
             
             # Подставляем данные в промпт
-            formatted_prompt = service_prompt.format(
+            formatted_prompt = safe_format(
+                service_prompt,
                 services_info=formatted_services,
                 user_query=user_query
             )
@@ -231,7 +234,8 @@ class LLMService:
             company_prompt = await prompt_manager.get_prompt("company_info_prompt", session)
             
             # Подставляем данные в промпт
-            formatted_prompt = company_prompt.format(
+            formatted_prompt = safe_format(
+                company_prompt,
                 company_info=company_info,
                 user_query=user_query
             )
@@ -275,7 +279,8 @@ class LLMService:
             formatted_history = self._format_conversation_history(conversation_history)
             
             # Подставляем данные в промпт
-            formatted_prompt = lead_prompt.format(
+            formatted_prompt = safe_format(
+                lead_prompt,
                 conversation_history=formatted_history
             )
             

@@ -2,6 +2,7 @@
 Оркестратор поиска и маршрутизации запросов.
 Согласно @vision.md: маршрутизация между Chroma (товары) и PostgreSQL (услуги).
 """
+import json
 import logging
 from typing import List, Dict, Any, Optional
 
@@ -81,7 +82,10 @@ class SearchOrchestrator:
                     llm_provider=llm_response.provider,
                     tokens_used=tokens_used,
                     processing_time_ms=processing_time,
-                    extra_data=f'{{"model": "{llm_response.model}", "usage": {llm_response.usage}}}'
+                    extra_data=json.dumps({
+                        "model": llm_response.model,
+                        "usage": llm_response.usage
+                    })
                 )
             else:
                 # Fallback для случаев без LLM
