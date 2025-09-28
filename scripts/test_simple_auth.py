@@ -64,3 +64,5 @@ def test_auth_and_catalog():
 if __name__ == "__main__":
     success = test_auth_and_catalog()
     print(f"\n{'✅ Тест пройден' if success else '❌ Тест не пройден'}")
+
+

@@ -77,3 +77,5 @@ def test_upload():
 if __name__ == "__main__":
     success = test_upload()
     print(f"\n{'✅ Тест пройден' if success else '❌ Тест не пройден'}")
+
+

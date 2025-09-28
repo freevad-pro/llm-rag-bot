@@ -121,7 +121,7 @@ class Message(Base):
     
     # Ограничения
     __table_args__ = (
-        CheckConstraint("role IN ('USER', 'ASSISTANT', 'SYSTEM')", name="check_message_role"),
+        CheckConstraint("role IN ('user', 'assistant', 'system')", name="check_message_role"),
         CheckConstraint("message_type IN ('TEXT', 'IMAGE', 'DOCUMENT')", name="check_message_type"),
         Index("idx_messages_conversation_created", "conversation_id", "created_at"),
     )

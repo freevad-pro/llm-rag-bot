@@ -73,3 +73,5 @@ TEMPLATE_FILTERS = {
     'filesize': filesize,
     'number_format': number_format,
 }
+
+

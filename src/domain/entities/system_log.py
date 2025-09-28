@@ -107,3 +107,5 @@ class SystemLog:
         return self.level in [LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL]
 
 
+
+

@@ -77,7 +77,7 @@ class LLMService:
             )
             
             self._logger.debug(f"Сгенерирован ответ длиной {len(response.content)} символов")
-            return response  # Возвращаем полный LLMResponse объект
+            return response.content  # Возвращаем только текст ответа
             
         except Exception as e:
             self._logger.error(f"Ошибка генерации ответа: {e}")

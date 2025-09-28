@@ -23,3 +23,5 @@ def create_templates() -> Jinja2Templates:
 
 # Глобальный объект templates для использования во всех роутах
 templates = create_templates()
+
+

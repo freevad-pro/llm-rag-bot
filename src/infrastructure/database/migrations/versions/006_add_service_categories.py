@@ -93,3 +93,5 @@ def downgrade() -> None:
     op.drop_table('service_categories')
 
 
+
+

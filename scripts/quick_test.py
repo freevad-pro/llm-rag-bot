@@ -98,3 +98,4 @@ if __name__ == "__main__":
         print("   - Запущены ли контейнеры: docker-compose ps")
         print("   - Доступность порта 8000")
         print("   - Логи приложения: docker-compose logs app")
+
