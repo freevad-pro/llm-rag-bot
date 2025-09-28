@@ -214,29 +214,6 @@ class UsageStatistics(Base):
     )
 
 
-class CatalogVersion(Base):
-    """
-    Версии каталога товаров
-    """
-    __tablename__ = "catalog_versions"
-    
-    id = Column(BigInteger, primary_key=True)
-    filename = Column(String(500), nullable=False)
-    original_filename = Column(String(500), nullable=False)
-    file_size = Column(Integer, nullable=False)
-    products_count = Column(Integer, default=0, nullable=False)
-    status = Column(String(20), default="UPLOADING", nullable=False)  # UPLOADING, INDEXING, ACTIVE, FAILED
-    is_active = Column(Boolean, default=False, nullable=False)
-    uploaded_by = Column(BigInteger, ForeignKey("admin_users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    indexed_at = Column(DateTime(timezone=True), nullable=True)
-    error_message = Column(Text, nullable=True)
-    
-    # Ограничения
-    __table_args__ = (
-        CheckConstraint("status IN ('UPLOADING', 'INDEXING', 'ACTIVE', 'FAILED')", name="check_catalog_status"),
-        Index("idx_catalog_versions_status_created", "status", "created_at"),
-    )
 
 
 class SystemLog(Base):
@@ -339,6 +316,7 @@ class CatalogVersion(Base):
     Версии каталога товаров для blue-green deployment
     """
     __tablename__ = "catalog_versions"
+    extend_existing = True
     
     id = Column(BigInteger, primary_key=True)
     filename = Column(String(255), nullable=False)  # Имя загруженного файла

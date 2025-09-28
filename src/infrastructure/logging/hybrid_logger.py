@@ -73,7 +73,7 @@ class HybridLogger:
                 log_entry = SystemLog(
                     level=level,
                     message=message,
-                    metadata=json.dumps(metadata) if metadata else None
+                    extra_data=json.dumps(metadata) if metadata else None
                 )
                 session.add(log_entry)
                 await session.commit()
