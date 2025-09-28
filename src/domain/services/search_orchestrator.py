@@ -190,7 +190,7 @@ class SearchOrchestrator:
                 import time
                 start_time = time.time()
                 
-                response = await llm_service.generate_contextual_response(
+                llm_result = await llm_service.generate_contextual_response(
                     user_query,
                     conversation_context,
                     context_data={
@@ -203,8 +203,8 @@ class SearchOrchestrator:
                 processing_time = int((time.time() - start_time) * 1000) if 'start_time' in locals() else 0
                 
                 return {
-                    "response": response.content if hasattr(response, 'content') else str(response),
-                    "llm_response": response if hasattr(response, 'usage') else None,
+                    "response": llm_result["text"],
+                    "llm_response": llm_result["llm_response"],
                     "processing_time_ms": processing_time,
                     "metadata": {
                         "search_results_count": 0,
@@ -329,7 +329,10 @@ class SearchOrchestrator:
     ) -> Dict[str, Any]:
         """Обрабатывает запрос на связь с менеджером."""
         try:
-            response = await llm_service.generate_contextual_response(
+            import time
+            start_time = time.time()
+            
+            llm_result = await llm_service.generate_contextual_response(
                 user_query,
                 conversation_context,
                 context_data={
@@ -339,8 +342,12 @@ class SearchOrchestrator:
                 session=session
             )
             
+            processing_time = int((time.time() - start_time) * 1000)
+            
             return {
-                "response": response,
+                "response": llm_result["text"],
+                "llm_response": llm_result["llm_response"],
+                "processing_time_ms": processing_time,
                 "metadata": {
                     "source": "contact_handler",
                     "action_required": "create_lead"
@@ -364,14 +371,21 @@ class SearchOrchestrator:
     ) -> Dict[str, Any]:
         """Обрабатывает общие запросы."""
         try:
-            response = await llm_service.generate_contextual_response(
+            import time
+            start_time = time.time()
+            
+            llm_result = await llm_service.generate_contextual_response(
                 user_query,
                 conversation_context,
                 session=session
             )
             
+            processing_time = int((time.time() - start_time) * 1000)
+            
             return {
-                "response": response,
+                "response": llm_result["text"],
+                "llm_response": llm_result["llm_response"],
+                "processing_time_ms": processing_time,
                 "metadata": {
                     "source": "general_llm"
                 },

@@ -131,11 +131,14 @@ ls -la
 
 ### 2.2 Копирование production файлов
 ```bash
-# Копируем production конфигурацию Docker Compose
-cp docker-compose.yml docker-compose.prod.yml
-
 # Копируем шаблон конфигурации
 cp env.production ../config/.env
+
+# ⚠️ ВАЖНО: НЕ копируем docker-compose.yml поверх docker-compose.prod.yml!
+# Файл docker-compose.prod.yml уже настроен для production с 3 контейнерами:
+# - app (FastAPI сервер)
+# - bot (Telegram бот) 
+# - postgres (база данных)
 ```
 
 ---
@@ -231,15 +234,22 @@ unset DEBUG NODE_ENV ENVIRONMENT
 
 ### 4.4 Запуск основного приложения
 ```bash
-# Запускаем приложение
+# Запускаем FastAPI сервер (API + админка)
 docker-compose -f docker-compose.prod.yml up -d app
 
-# Проверяем статус
-docker-compose -f docker-compose.prod.yml ps
-
-# Смотрим логи запуска
+# Ждем готовности FastAPI (30-60 секунд)
 docker-compose -f docker-compose.prod.yml logs -f app
 # Дождитесь сообщения о готовности, затем Ctrl+C
+
+# Запускаем Telegram бота (отдельный контейнер)
+docker-compose -f docker-compose.prod.yml up -d bot
+
+# Проверяем статус всех сервисов
+docker-compose -f docker-compose.prod.yml ps
+
+# Смотрим логи бота
+docker-compose -f docker-compose.prod.yml logs -f bot
+# Дождитесь сообщения "Bot started successfully", затем Ctrl+C
 ```
 
 ---
@@ -418,11 +428,17 @@ cd /opt/llm-bot
 ```bash
 cd /opt/llm-bot/app
 
-# Статус всех сервисов
+# Статус всех сервисов (app, bot, postgres)
 docker-compose -f docker-compose.prod.yml ps
 
-# Перезапуск только приложения
+# Перезапуск только FastAPI сервера
 docker-compose -f docker-compose.prod.yml restart app
+
+# Перезапуск только Telegram бота
+docker-compose -f docker-compose.prod.yml restart bot
+
+# Перезапуск всех сервисов
+docker-compose -f docker-compose.prod.yml restart
 
 # Остановка всех сервисов
 docker-compose -f docker-compose.prod.yml down
@@ -436,8 +452,14 @@ docker-compose -f docker-compose.prod.yml up -d
 # Использование ресурсов
 docker stats
 
-# Логи в реальном времени
+# Логи всех сервисов в реальном времени
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Логи только FastAPI сервера
 docker-compose -f docker-compose.prod.yml logs -f app
+
+# Логи только Telegram бота
+docker-compose -f docker-compose.prod.yml logs -f bot
 
 # Проверка здоровья
 curl http://localhost:8000/health
@@ -464,13 +486,19 @@ cat /opt/llm-bot/backups/latest_info.txt
 
 ### Бот не отвечает в Telegram:
 ```bash
-# Проверяем логи приложения
-docker-compose -f docker-compose.prod.yml logs app | grep -i error
+# Проверяем логи Telegram бота (отдельный контейнер)
+docker-compose -f docker-compose.prod.yml logs bot | grep -i error
+
+# Проверяем статус bot контейнера
+docker-compose -f docker-compose.prod.yml ps bot
 
 # Проверяем BOT_TOKEN в конфигурации
 grep BOT_TOKEN /opt/llm-bot/config/.env
 
-# Перезапускаем приложение
+# Перезапускаем Telegram бота
+docker-compose -f docker-compose.prod.yml restart bot
+
+# Если проблема в FastAPI - перезапускаем app
 docker-compose -f docker-compose.prod.yml restart app
 ```
 
@@ -515,8 +543,10 @@ find /opt/llm-bot/backups -name "*.tar.gz" -mtime +30 -delete
 ## 📞 Поддержка и мониторинг
 
 ### Логи для отладки:
-- **Приложение:** `docker-compose -f docker-compose.prod.yml logs app`
+- **FastAPI сервер:** `docker-compose -f docker-compose.prod.yml logs app`
+- **Telegram бот:** `docker-compose -f docker-compose.prod.yml logs bot`
 - **База данных:** `docker-compose -f docker-compose.prod.yml logs postgres`
+- **Все сервисы:** `docker-compose -f docker-compose.prod.yml logs`
 - **Backup'ы:** `/opt/llm-bot/data/logs/backup.log`
 - **Системные:** `/var/log/syslog`
 

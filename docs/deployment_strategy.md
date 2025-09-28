@@ -71,14 +71,20 @@ volumes:
 ## 🔧 Production Docker Compose
 
 ### Отличия от development версии:
-1. **Убираем hot reload** - нет volume для /app/src
-2. **Внешние volumes** - данные на хосте, не в Docker volumes
-3. **Переменные из файла** - загрузка .env
-4. **Restart policies** - автозапуск при перезагрузке сервера
-5. **Healthchecks** - проверка здоровья сервисов
+1. **Разделение сервисов** - FastAPI и Telegram бот в отдельных контейнерах
+2. **Убираем hot reload** - нет volume для /app/src
+3. **Внешние volumes** - данные на хосте, не в Docker volumes
+4. **Переменные из файла** - загрузка .env
+5. **Restart policies** - автозапуск при перезагрузке сервера
+6. **Healthchecks** - проверка здоровья сервисов
+
+### Трёхконтейнерная архитектура:
+- **app** - FastAPI сервер (API, админка, health checks)
+- **bot** - Telegram бот (отдельный процесс)
+- **postgres** - База данных
 
 ```yaml
-# docker-compose.prod.yml
+# docker-compose.prod.yml (актуальная версия)
 services:
   app:
     build: .
@@ -86,6 +92,11 @@ services:
       - "8000:8000"
     env_file:
       - /opt/llm-bot/config/.env
+    environment:
+      DEBUG: "false"
+      ENVIRONMENT: "production"
+      # Отключаем Telegram бота в FastAPI контейнере
+      DISABLE_TELEGRAM_BOT: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,24 +105,43 @@ services:
       - /opt/llm-bot/data/chroma:/app/data/chroma
       - /opt/llm-bot/data/uploads:/app/data/uploads
       - /opt/llm-bot/data/logs:/app/logs
+      - /opt/llm-bot/config/.env:/app/.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=10)"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  bot:
+    build: .
+    command: python -m src.main bot
+    env_file:
+      - /opt/llm-bot/config/.env
+    environment:
+      DEBUG: "false"
+      ENVIRONMENT: "production"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - /opt/llm-bot/data/chroma:/app/data/chroma
+      - /opt/llm-bot/data/uploads:/app/data/uploads
+      - /opt/llm-bot/data/logs:/app/logs
+      - /opt/llm-bot/config/.env:/app/.env
+    restart: unless-stopped
 
   postgres:
     image: postgres:15
     environment:
       POSTGRES_DB: catalog_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     volumes:
       - /opt/llm-bot/data/postgres:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d catalog_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -146,9 +176,9 @@ sudo chown -R $USER:$USER /opt/llm-bot
 cd /opt/llm-bot/app
 git clone YOUR_REPOSITORY_URL .
 
-# Создание production конфигурации
-cp docker-compose.yml docker-compose.prod.yml
-# Ручная настройка docker-compose.prod.yml по образцу выше
+# ⚠️ ВАЖНО: НЕ копируем docker-compose.yml поверх docker-compose.prod.yml!
+# Файл docker-compose.prod.yml уже содержит правильную production конфигурацию
+# с трёхконтейнерной архитектурой (app, bot, postgres)
 ```
 
 ### Шаг 3: Настройка переменных окружения
@@ -198,13 +228,13 @@ git pull origin main
 echo "🏗️ Собираем новый Docker образ..."
 docker-compose -f docker-compose.prod.yml build app
 
-# 4. Останавливаем только app, БД остается работать
-echo "⏹️ Останавливаем приложение..."
-docker-compose -f docker-compose.prod.yml stop app
+# 4. Останавливаем app и bot, БД остается работать
+echo "⏹️ Останавливаем приложение и бота..."
+docker-compose -f docker-compose.prod.yml stop app bot
 
-# 5. Запускаем новую версию
-echo "▶️ Запускаем новую версию..."
-docker-compose -f docker-compose.prod.yml up -d app
+# 5. Запускаем новые версии
+echo "▶️ Запускаем новые версии..."
+docker-compose -f docker-compose.prod.yml up -d app bot
 
 # 6. Ждем готовности и проверяем health
 echo "🔍 Проверяем готовность..."
@@ -341,12 +371,13 @@ docker-compose -f docker-compose.prod.yml up -d app
 
 ### Просмотр логов:
 ```bash
-# Все логи
+# Все логи (app, bot, postgres)
 docker-compose -f docker-compose.prod.yml logs -f
 
 # Логи конкретного сервиса
-docker-compose -f docker-compose.prod.yml logs -f app
-docker-compose -f docker-compose.prod.yml logs -f postgres
+docker-compose -f docker-compose.prod.yml logs -f app      # FastAPI сервер
+docker-compose -f docker-compose.prod.yml logs -f bot      # Telegram бот
+docker-compose -f docker-compose.prod.yml logs -f postgres # База данных
 
 # Логи приложения на диске
 tail -f /opt/llm-bot/data/logs/app.log
@@ -421,17 +452,20 @@ sudo systemctl start fail2ban
 
 ## 🚨 План действий при сбоях
 
-### 1. Если не запускается app:
+### 1. Если не запускается app или bot:
 ```bash
-# Проверяем логи
+# Проверяем логи FastAPI сервера
 docker-compose -f docker-compose.prod.yml logs app
+
+# Проверяем логи Telegram бота
+docker-compose -f docker-compose.prod.yml logs bot
 
 # Проверяем конфигурацию
 docker-compose -f docker-compose.prod.yml config
 
-# Пересобираем образ
-docker-compose -f docker-compose.prod.yml build app
-docker-compose -f docker-compose.prod.yml up -d app
+# Пересобираем образы
+docker-compose -f docker-compose.prod.yml build app bot
+docker-compose -f docker-compose.prod.yml up -d app bot
 ```
 
 ### 2. Если проблемы с БД:
@@ -449,9 +483,9 @@ docker-compose -f docker-compose.prod.yml exec -T postgres psql -U postgres cata
 # Откат к предыдущей версии кода
 git reset --hard HEAD~1
 
-# Пересборка и запуск
-docker-compose -f docker-compose.prod.yml build app
-docker-compose -f docker-compose.prod.yml up -d app
+# Пересборка и запуск всех сервисов
+docker-compose -f docker-compose.prod.yml build app bot
+docker-compose -f docker-compose.prod.yml up -d app bot
 ```
 
 ---

@@ -1,7 +1,8 @@
 # Управление паролем PostgreSQL в ИИ-боте
 
 **Дата создания:** 13 сентября 2025  
-**Цель:** Понимание и настройка паролей PostgreSQL для development и production
+**Цель:** Понимание и настройка паролей PostgreSQL для development и production  
+**Архитектура:** Production использует 3 контейнера (app, bot, postgres)
 
 ---
 
@@ -99,6 +100,7 @@ docker-compose -f docker-compose.prod.yml up -d
 #### Шаг 1: Остановка сервисов
 ```bash
 cd /opt/llm-bot/app
+# Останавливаем все сервисы (app, bot, postgres)
 docker-compose -f docker-compose.prod.yml down
 ```
 
@@ -117,7 +119,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:ВАШ_НОВЫЙ_СИЛЬНЫЙ_ПА
 # Удаляем старые контейнеры и volumes (ДАННЫЕ СОХРАНЯТСЯ)
 docker-compose -f docker-compose.prod.yml down -v
 
-# Запускаем с новым паролем
+# Запускаем все сервисы с новым паролем (app, bot, postgres)
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -143,8 +145,9 @@ ALTER USER postgres PASSWORD 'ВАШ_НОВЫЙ_СИЛЬНЫЙ_ПАРОЛЬ';
 # Редактируем .env с новым паролем
 nano /opt/llm-bot/config/.env
 
-# Перезапускаем только приложение
-docker-compose -f docker-compose.prod.yml restart app
+# ⚠️ ВАЖНО: Перезапускаем ОБА контейнера (app И bot)
+# Оба используют БД и кешируют переменные окружения при старте
+docker-compose -f docker-compose.prod.yml restart app bot
 ```
 
 ---
@@ -153,8 +156,11 @@ docker-compose -f docker-compose.prod.yml restart app
 
 ### Тест подключения из приложения:
 ```bash
-# Смотрим логи приложения на ошибки подключения
+# Смотрим логи FastAPI сервера на ошибки подключения
 docker-compose -f docker-compose.prod.yml logs app | grep -i "database\|postgres\|connection"
+
+# Смотрим логи Telegram бота на ошибки подключения
+docker-compose -f docker-compose.prod.yml logs bot | grep -i "database\|postgres\|connection"
 
 # Если есть ошибки - проверяем пароль в .env
 ```
@@ -257,10 +263,10 @@ docker exec -it <container_id> psql -U postgres -c "ALTER USER postgres PASSWORD
 - [ ] Есть план отката
 
 ### Во время смены:
-- [ ] Остановлены сервисы
+- [ ] Остановлены все сервисы (app, bot, postgres)
 - [ ] Изменен пароль в .env файле (2 места)
-- [ ] Перезапущены контейнеры
-- [ ] Проверено подключение
+- [ ] Перезапущены все контейнеры (app, bot, postgres)
+- [ ] Проверено подключение из app и bot
 
 ### После смены:
 - [ ] Health check проходит
@@ -279,12 +285,22 @@ docker exec -it <container_id> psql -U postgres -c "ALTER USER postgres PASSWORD
 
 echo "🔍 Проверяем подключение к PostgreSQL..."
 
+# Проверяем прямое подключение к БД
 if docker-compose -f /opt/llm-bot/app/docker-compose.prod.yml exec postgres psql -U postgres -d catalog_db -c "SELECT 1;" > /dev/null 2>&1; then
-    echo "✅ Подключение к PostgreSQL работает"
+    echo "✅ Прямое подключение к PostgreSQL работает"
 else
-    echo "❌ Ошибка подключения к PostgreSQL"
+    echo "❌ Ошибка прямого подключения к PostgreSQL"
     echo "Проверьте пароль в /opt/llm-bot/config/.env"
     exit 1
+fi
+
+# Проверяем что app и bot контейнеры запущены
+echo "🔍 Проверяем статус контейнеров..."
+if docker-compose -f /opt/llm-bot/app/docker-compose.prod.yml ps app bot | grep -q "Up"; then
+    echo "✅ Контейнеры app и bot запущены"
+else
+    echo "⚠️ Один или оба контейнера (app/bot) не запущены"
+    echo "Запустите: docker-compose -f docker-compose.prod.yml up -d app bot"
 fi
 ```
 

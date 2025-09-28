@@ -77,11 +77,19 @@ class LLMService:
             )
             
             self._logger.debug(f"Сгенерирован ответ длиной {len(response.content)} символов")
-            return response.content  # Возвращаем только текст ответа
+            
+            # Возвращаем структуру с текстом и полным LLM ответом для метрик
+            return {
+                "text": response.content,
+                "llm_response": response
+            }
             
         except Exception as e:
             self._logger.error(f"Ошибка генерации ответа: {e}")
-            return "Извините, произошла ошибка при генерации ответа. Попробуйте еще раз."
+            return {
+                "text": "Извините, произошла ошибка при генерации ответа. Попробуйте еще раз.",
+                "llm_response": None
+            }
     
     async def classify_user_query(
         self, 
