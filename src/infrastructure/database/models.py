@@ -112,6 +112,7 @@ class Message(Base):
     processing_time_ms = Column(Integer, nullable=True)
     llm_provider = Column(String(50), nullable=True)
     tokens_used = Column(Integer, nullable=True)
+    extra_data = Column(Text, nullable=True)
     
     # Системные поля
     created_at = Column(DateTime(timezone=True), server_default=func.now())

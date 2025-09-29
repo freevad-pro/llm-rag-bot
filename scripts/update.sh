@@ -187,6 +187,20 @@ docker-compose -f docker-compose.prod.yml stop app
 log "▶️ Запускаем новую версию приложения..."
 docker-compose -f docker-compose.prod.yml up -d app
 
+# Запускаем миграции базы данных
+log "🗃️ Применяем миграции базы данных..."
+sleep 10  # Даем время контейнеру запуститься
+if docker-compose -f docker-compose.prod.yml exec -T app python -m alembic upgrade head; then
+    success "✅ Миграции применены успешно"
+else
+    log "❌ Ошибка применения миграций"
+    log "📋 Показываем статус миграций:"
+    docker-compose -f docker-compose.prod.yml exec -T app python -m alembic current || true
+    log "📋 Показываем историю миграций:"
+    docker-compose -f docker-compose.prod.yml exec -T app python -m alembic history || true
+    rollback
+fi
+
 # Ждем готовности нового контейнера
 log "⏳ Ожидаем готовности нового контейнера..."
 WAIT_TIME=60
