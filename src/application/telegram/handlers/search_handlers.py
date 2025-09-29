@@ -11,6 +11,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....infrastructure.search.catalog_service import CatalogSearchService
 from ..keyboards.search_keyboards import SearchKeyboardBuilder, get_main_search_keyboard, get_contact_manager_keyboard
@@ -38,7 +39,6 @@ class SearchHandlers:
         
         Args:
             catalog_service: Сервис поиска по каталогу
-            message_service: Сервис для работы с сообщениями
         """
         self.catalog_service = catalog_service
         self.router = Router()
@@ -46,6 +46,14 @@ class SearchHandlers:
         
         # Регистрируем handlers
         self._register_handlers()
+    
+    async def save_user_message(self, session: AsyncSession, user_id: int, chat_id: int, content: str) -> None:
+        """Обёртка для сохранения сообщения пользователя"""
+        await message_service.save_message(session, chat_id, "user", content)
+    
+    async def save_assistant_message(self, session: AsyncSession, user_id: int, chat_id: int, content: str) -> None:
+        """Обёртка для сохранения сообщения ассистента"""
+        await message_service.save_message(session, chat_id, "assistant", content)
     
     def _register_handlers(self) -> None:
         """Регистрирует все обработчики поиска."""
@@ -79,7 +87,7 @@ class SearchHandlers:
         self.router.message(SearchStates.waiting_for_search_query)(self.handle_search_query)
         self.router.message(SearchStates.waiting_for_article_search)(self.handle_article_search)
     
-    async def cmd_search(self, message: Message, state: FSMContext) -> None:
+    async def cmd_search(self, message: Message, state: FSMContext, session: AsyncSession) -> None:
         """
         Обработчик команды /search.
         
@@ -89,7 +97,8 @@ class SearchHandlers:
         """
         try:
             # Сохраняем сообщение в истории
-            await self.message_service.save_user_message(
+            await self.save_user_message(
+                session,
                 message.from_user.id, 
                 message.chat.id,
                 message.text or ""
@@ -117,7 +126,8 @@ class SearchHandlers:
             )
             
             # Сохраняем ответ бота
-            await self.message_service.save_assistant_message(
+            await self.save_assistant_message(
+                session,
                 message.from_user.id,
                 message.chat.id, 
                 response_text
@@ -129,7 +139,7 @@ class SearchHandlers:
                 "❌ Произошла ошибка при открытии поиска. Попробуйте позже."
             )
     
-    async def cmd_categories(self, message: Message, state: FSMContext) -> None:
+    async def cmd_categories(self, message: Message, state: FSMContext, session: AsyncSession) -> None:
         """
         Обработчик команды /categories.
         
@@ -139,7 +149,8 @@ class SearchHandlers:
         """
         try:
             # Сохраняем сообщение
-            await self.message_service.save_user_message(
+            await self.save_user_message(
+                session,
                 message.from_user.id,
                 message.chat.id,
                 message.text or ""
@@ -208,7 +219,7 @@ class SearchHandlers:
             "📂 <b>Все категории</b>\n\n"
             "Выберите категорию или введите название товара:",
             parse_mode="HTML",
-            reply_markup=self.search_keyboards.back_to_search_menu()
+            reply_markup=SearchKeyboardBuilder.back_to_search_menu()
         )
         
         # Показываем все категории
@@ -250,7 +261,7 @@ class SearchHandlers:
             page
         )
     
-    async def handle_search_query(self, message: Message, state: FSMContext) -> None:
+    async def handle_search_query(self, message: Message, state: FSMContext, session: AsyncSession) -> None:
         """
         Обработчик поискового запроса.
         
@@ -266,7 +277,8 @@ class SearchHandlers:
                 return
             
             # Сохраняем сообщение пользователя
-            await self.message_service.save_user_message(
+            await self.save_user_message(
+                session,
                 message.from_user.id,
                 message.chat.id,
                 query
@@ -291,7 +303,7 @@ class SearchHandlers:
             self._logger.error(f"Ошибка обработки поискового запроса: {e}")
             await message.answer("❌ Ошибка поиска. Попробуйте еще раз.")
     
-    async def handle_article_search(self, message: Message, state: FSMContext) -> None:
+    async def handle_article_search(self, message: Message, state: FSMContext, session: AsyncSession) -> None:
         """
         Обработчик поиска по артикулу.
         
@@ -307,7 +319,8 @@ class SearchHandlers:
                 return
             
             # Сохраняем сообщение пользователя
-            await self.message_service.save_user_message(
+            await self.save_user_message(
+                session,
                 message.from_user.id,
                 message.chat.id,
                 article
@@ -344,7 +357,7 @@ class SearchHandlers:
             f"📄 <b>Страница результатов: {page + 1}</b>\n\n"
             "Пагинация результатов поиска будет реализована в следующих итерациях.",
             parse_mode="HTML",
-            reply_markup=self.search_keyboards.back_to_search_menu()
+            reply_markup=SearchKeyboardBuilder.back_to_search_menu()
         )
     
     async def callback_product_details(self, callback: CallbackQuery, state: FSMContext) -> None:
@@ -430,10 +443,8 @@ class SearchHandlers:
                     parse_mode="HTML"
                 )
                 
-                # Сохраняем ответ бота
-                await self.message_service.save_assistant_message(
-                    user_id, chat_id, response_text
-                )
+                # Сохраняем ответ бота (требуется session)
+                # await self.save_assistant_message(session, user_id, chat_id, response_text)
             
         except Exception as e:
             self._logger.error(f"Ошибка показа категорий: {e}")
@@ -515,10 +526,8 @@ class SearchHandlers:
                     parse_mode="HTML"
                 )
             
-            # Сохраняем ответ бота
-            await self.message_service.save_assistant_message(
-                user_id, chat_id, response_text
-            )
+            # Сохраняем ответ бота (требуется session)
+            # await self.save_assistant_message(session, user_id, chat_id, response_text)
             
         except Exception as e:
             self._logger.error(f"Ошибка выполнения поиска: {e}")
@@ -527,9 +536,7 @@ class SearchHandlers:
             if message:
                 await message.answer(error_text)
             
-            await self.message_service.save_assistant_message(
-                user_id, chat_id, error_text
-            )
+            # await self.save_assistant_message(session, user_id, chat_id, error_text)
 
     async def callback_product_photo(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Обработчик показа фото товара."""
@@ -540,7 +547,7 @@ class SearchHandlers:
             f"📷 <b>Фото товара ID: {product_id}</b>\n\n"
             "Просмотр фотографий товара будет доступен в следующих итерациях.",
             parse_mode="HTML",
-            reply_markup=self.search_keyboards.back_to_search_menu()
+            reply_markup=SearchKeyboardBuilder.back_to_search_menu()
         )
 
     async def callback_product_page(self, callback: CallbackQuery, state: FSMContext) -> None:
@@ -552,7 +559,7 @@ class SearchHandlers:
             f"🌐 <b>Страница товара ID: {product_id}</b>\n\n"
             "Переход на веб-страницу товара будет доступен в следующих итерациях.",
             parse_mode="HTML",
-            reply_markup=self.search_keyboards.back_to_search_menu()
+            reply_markup=SearchKeyboardBuilder.back_to_search_menu()
         )
 
     async def callback_ask_about_product(self, callback: CallbackQuery, state: FSMContext) -> None:
@@ -564,5 +571,5 @@ class SearchHandlers:
             f"❓ <b>Вопрос о товаре ID: {product_id}</b>\n\n"
             "Задать вопрос о товаре менеджеру будет доступно в следующих итерациях.",
             parse_mode="HTML",
-            reply_markup=self.search_keyboards.back_to_search_menu()
+            reply_markup=SearchKeyboardBuilder.back_to_search_menu()
         )

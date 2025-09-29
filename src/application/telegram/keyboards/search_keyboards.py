@@ -367,6 +367,32 @@ class SearchKeyboardBuilder:
         )
         
         return builder.as_markup()
+    
+    @staticmethod
+    def back_to_search_menu() -> InlineKeyboardMarkup:
+        """
+        Создает клавиатуру с кнопкой возврата к меню поиска.
+        
+        Returns:
+            Inline клавиатура с кнопкой "Назад к поиску"
+        """
+        builder = InlineKeyboardBuilder()
+        
+        builder.row(
+            InlineKeyboardButton(
+                text="🔍 Назад к поиску",
+                callback_data="new_search"
+            )
+        )
+        
+        builder.row(
+            InlineKeyboardButton(
+                text="🏠 Главное меню",
+                callback_data="main_menu"
+            )
+        )
+        
+        return builder.as_markup()
 
 
 # Готовые клавиатуры для частого использования

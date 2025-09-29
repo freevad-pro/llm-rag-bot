@@ -150,12 +150,15 @@ async def edit_service_page(
     if not service:
         raise HTTPException(status_code=404, detail="Услуга не найдена")
     
+    # Получаем категории из БД
+    categories = await service_category_management.get_all_categories(session, active_only=True)
+    
     context = {
         "request": request,
         "current_user": current_user,
         "page_title": f"Редактировать услугу: {service.name}",
         "service": service,
-        "categories": ServiceCategory,
+        "categories": categories,
         "error": request.session.pop("services_error", None),
         "message": request.session.pop("services_message", None),
     }
@@ -188,10 +191,16 @@ async def edit_service_post(
         return RedirectResponse(url=f"/admin/services/edit/{service_id}", status_code=302)
     
     # Парсим категорию
-    service_category = None
+    category_id = None
     if category:
         try:
-            service_category = ServiceCategory(category)
+            category_id = int(category)
+            # Проверяем существование категории
+            categories = await service_category_management.get_all_categories(session)
+            category_exists = any(cat.id == category_id for cat in categories)
+            if not category_exists:
+                request.session["services_error"] = "Выбранная категория не существует"
+                return RedirectResponse(url=f"/admin/services/edit/{service_id}", status_code=302)
         except ValueError:
             request.session["services_error"] = "Недопустимая категория"
             return RedirectResponse(url=f"/admin/services/edit/{service_id}", status_code=302)
@@ -203,7 +212,7 @@ async def edit_service_post(
         current_user.id,
         name=name,
         description=description,
-        category=service_category,
+        category_id=category_id,
         keywords=keywords,
         price_info=price_info,
         is_active=is_active,

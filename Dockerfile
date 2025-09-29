@@ -14,7 +14,7 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false
 
 # Копирование файлов зависимостей
-COPY pyproject.toml README.md ./
+COPY pyproject.toml poetry.lock README.md ./
 
 # Установка зависимостей без установки проекта
 RUN poetry install --only=main --no-interaction --no-ansi --no-root

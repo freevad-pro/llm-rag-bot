@@ -90,8 +90,9 @@ class TelegramNotifier:
         Returns:
             True если уведомление отправлено успешно
         """
-        admin_ids = settings.admin_telegram_ids
+        admin_ids = settings.admin_telegram_ids_list
         if not admin_ids:
+            await hybrid_logger.warning("ADMIN_TELEGRAM_IDS не настроены - критические уведомления отключены")
             return False
         
         try:
@@ -107,6 +108,8 @@ class TelegramNotifier:
             
             # Отправляем всем администраторам
             success_count = 0
+            total_admins = len(admin_ids)
+            
             for admin_id in admin_ids:
                 try:
                     await self.bot.send_message(
@@ -115,8 +118,25 @@ class TelegramNotifier:
                         parse_mode="HTML"
                     )
                     success_count += 1
-                except TelegramAPIError:
+                    await hybrid_logger.info(f"Критическое уведомление отправлено админу {admin_id}")
+                except TelegramAPIError as e:
+                    await hybrid_logger.error(
+                        f"Ошибка отправки критического уведомления админу {admin_id}: {e}",
+                        {"admin_id": admin_id, "error_code": getattr(e, 'error_code', None)}
+                    )
                     continue
+            
+            # Логируем результат
+            if success_count > 0:
+                await hybrid_logger.business(
+                    f"Критическое уведомление отправлено {success_count}/{total_admins} администраторам",
+                    {"error_message": error_message, "success_count": success_count, "total_admins": total_admins}
+                )
+            else:
+                await hybrid_logger.error(
+                    f"Критическое уведомление не было доставлено ни одному администратору ({total_admins} получателей)",
+                    {"error_message": error_message, "admin_ids": admin_ids}
+                )
             
             return success_count > 0
             

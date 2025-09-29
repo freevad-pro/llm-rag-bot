@@ -158,8 +158,8 @@
                                         <select class="form-select" id="category" name="category">
                                             <option value="">Без категории</option>
                                             {% for cat in categories %}
-                                            <option value="{{ cat.value }}" 
-                                                    {% if service.category and service.category.value == cat.value %}selected{% endif %}>
+                                            <option value="{{ cat.id }}" 
+                                                    {% if service.category_id and service.category_id == cat.id %}selected{% endif %}>
                                                 {{ cat.display_name }}
                                             </option>
                                             {% endfor %}
