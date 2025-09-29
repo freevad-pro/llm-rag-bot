@@ -147,13 +147,36 @@ async def test_connection(
                     content={"success": False, "error": "OpenAI API ключ не настроен"}
                 )
             
-            provider = OpenAIProvider(settings.openai_api_key)
-            # Простой тест - получение списка моделей
-            models = await provider.get_available_models()
-            return JSONResponse(content={
-                "success": True, 
-                "message": f"OpenAI API работает. Доступно моделей: {len(models)}"
-            })
+            try:
+                # Создаем провайдер с правильной конфигурацией (словарь)
+                provider_config = {
+                    "api_key": settings.openai_api_key,
+                    "model": settings.openai_default_model,
+                    "timeout": 30
+                }
+                provider = OpenAIProvider(provider_config)
+                
+                # Используем существующий метод is_healthy()
+                is_healthy = await provider.is_healthy()
+                if is_healthy:
+                    return JSONResponse(content={
+                        "success": True, 
+                        "message": f"OpenAI API работает. Модель: {settings.openai_default_model}"
+                    })
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"success": False, "error": "OpenAI API недоступен или неверный ключ"}
+                    )
+            except Exception as e:
+                # Логируем ошибку проверки
+                from ....infrastructure.logging.hybrid_logger import hybrid_logger
+                await hybrid_logger.error(f"Ошибка проверки OpenAI провайдера: {e}")
+                
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": f"Ошибка инициализации провайдера: {str(e)}"}
+                )
         
         elif service == "telegram":
             # Тестируем Telegram Bot API

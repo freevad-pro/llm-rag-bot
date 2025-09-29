@@ -108,8 +108,7 @@ async def catalog_upload_post(
             background_tasks.add_task(
                 _process_catalog_reindex,
                 str(file_path),
-                current_user.id,
-                session
+                current_user.id
             )
             
             message = "Файл загружен. Переиндексация началась в фоновом режиме."
@@ -309,32 +308,40 @@ async def delete_catalog_version_api(
 
 async def _process_catalog_reindex(
     file_path: str,
-    user_id: int,
-    session: AsyncSession
+    user_id: int
 ):
     """
     Фоновая задача переиндексации каталога.
     Реализует blue-green deployment без простоя.
+    Создает собственную сессию БД для фонового выполнения.
     """
-    catalog_service = CatalogManagementService(session)
+    from ....infrastructure.database.connection import async_session_factory
     
-    try:
-        await catalog_service.reindex_catalog(
-            file_path=file_path,
-            user_id=user_id
-        )
+    async with async_session_factory() as session:
+        catalog_service = CatalogManagementService(session)
         
-        await hybrid_logger.info(f"Переиндексация каталога завершена успешно: {file_path}")
-        
-    except Exception as e:
-        await hybrid_logger.error(f"Ошибка переиндексации каталога {file_path}: {str(e)}")
-        
-        # Обновляем статус в БД
-        await catalog_service.update_indexing_status(
-            file_path=file_path,
-            status="failed",
-            error_message=str(e)
-        )
+        try:
+            await catalog_service.reindex_catalog(
+                file_path=file_path,
+                user_id=user_id
+            )
+            
+            await hybrid_logger.info(f"Переиндексация каталога завершена успешно: {file_path}")
+            
+        except Exception as e:
+            await hybrid_logger.error(f"Ошибка переиндексации каталога {file_path}: {str(e)}")
+            
+            # Обновляем статус в БД
+            try:
+                await catalog_service.update_indexing_status(
+                    file_path=file_path,
+                    status="failed",
+                    error_message=str(e)
+                )
+                await session.commit()
+            except Exception as commit_error:
+                await hybrid_logger.error(f"Ошибка сохранения статуса ошибки: {commit_error}")
+                await session.rollback()
 
 
 # Функция _process_catalog_rollback удалена - функция отката убрана
