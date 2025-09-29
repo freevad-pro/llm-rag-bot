@@ -265,8 +265,6 @@ class CatalogSearchService(BaseSearchService):
                         # Создаем объект Product из метаданных
                         product = Product(
                             id=metadata.get("id", ""),
-                            section_name_1=metadata.get("section_name_1", ""),
-                            section_name_2=metadata.get("section_name_2", ""),
                             product_name=metadata.get("product_name", ""),
                             description=metadata.get("description", ""),
                             category_1=metadata.get("category_1", ""),

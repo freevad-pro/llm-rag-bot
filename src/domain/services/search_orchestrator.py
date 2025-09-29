@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from .query_classifier import QueryType, classify_user_query
 from .conversation_service import conversation_service
@@ -233,9 +234,11 @@ class SearchOrchestrator:
     ) -> Dict[str, Any]:
         """Обрабатывает запрос об услугах компании."""
         try:
-            # Поиск услуг в PostgreSQL
-            services_query = select(CompanyService).where(
-                CompanyService.active == True
+            # Поиск услуг в PostgreSQL с загрузкой категорий
+            services_query = select(CompanyService).options(
+                joinedload(CompanyService.category_rel)
+            ).where(
+                CompanyService.is_active == True
             )
             
             services_result = await session.execute(services_query)
@@ -244,9 +247,9 @@ class SearchOrchestrator:
             # Конвертируем в словари
             services_data = [
                 {
-                    "title": service.title,
+                    "title": service.name,
                     "description": service.description,
-                    "category": service.category,
+                    "category": service.category_rel.display_name if service.category_rel else "Без категории",
                     "keywords": service.keywords
                 }
                 for service in services

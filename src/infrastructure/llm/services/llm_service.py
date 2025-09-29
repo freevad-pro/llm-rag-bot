@@ -11,6 +11,7 @@ from ..factory import llm_factory
 from ..providers import LLMMessage, LLMResponse, LLMError
 from .prompt_manager import prompt_manager
 from ...utils.text_utils import safe_format
+from ....domain.entities.product import SearchResult
 
 
 class LLMService:
@@ -121,7 +122,7 @@ class LLMService:
     async def generate_product_response(
         self,
         user_query: str,
-        search_results: List[Dict[str, Any]],
+        search_results: List['SearchResult'],
         session: AsyncSession
     ) -> str:
         """
@@ -301,20 +302,24 @@ class LLMService:
             self._logger.error(f"Ошибка определения создания лида: {e}")
             return False  # Безопасный fallback
     
-    def _format_search_results(self, search_results: List[Dict[str, Any]]) -> str:
+    def _format_search_results(self, search_results: List['SearchResult']) -> str:
         """Форматирует результаты поиска для промпта."""
         if not search_results:
             return "Товары не найдены."
         
         formatted = []
         for i, result in enumerate(search_results[:5], 1):  # Максимум 5 товаров
-            item = f"{i}. {result.get('name', 'Без названия')}"
-            if result.get('article'):
-                item += f" (арт. {result['article']})"
-            if result.get('description'):
-                item += f"\n   Описание: {result['description']}"
-            if result.get('category'):
-                item += f"\n   Категория: {result['category']}"
+            product = result.product
+            item = f"{i}. {product.product_name}"
+            if product.article:
+                item += f" (арт. {product.article})"
+            if product.description:
+                item += f"\n   Описание: {product.description}"
+            if product.get_full_category():
+                item += f"\n   Категория: {product.get_full_category()}"
+            # Добавляем релевантность
+            relevance = int(result.score * 100)
+            item += f"\n   Релевантность: {relevance}%"
             formatted.append(item)
         
         return "\n\n".join(formatted)
