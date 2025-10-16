@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....infrastructure.database.connection import get_session
 from ....domain.services.usage_statistics_service import usage_statistics_service
 from ....domain.entities.admin_user import AdminUser
-from ...web.auth import get_current_admin_user, require_admin_user
+from .admin import get_current_admin_user, require_admin_user
 from fastapi.templating import Jinja2Templates
 from ....infrastructure.logging.hybrid_logger import hybrid_logger
 
