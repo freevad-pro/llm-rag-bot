@@ -69,7 +69,7 @@ class HybridLogger:
         """Сохранение в PostgreSQL"""
         try:
             from ..database.connection import get_session
-            async for session in get_session():
+            async with get_session() as session:
                 log_entry = SystemLog(
                     level=level,
                     message=message,
@@ -77,7 +77,6 @@ class HybridLogger:
                 )
                 session.add(log_entry)
                 await session.commit()
-                break
         except Exception as e:
             # Не падаем при ошибке логирования
             self.file_logger.error(f"Ошибка сохранения лога в БД: {e}")
