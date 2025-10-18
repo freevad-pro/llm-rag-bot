@@ -268,21 +268,5 @@ setInterval(() => {
     // TODO: Реализовать через HTMX
     console.log('Обновление статистики...');
 }, 30000);
-
-// Функция для переключения sidebar на мобильных
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebarMenu');
-    sidebar.classList.toggle('show');
-}
-
-// Скрываем sidebar при клике вне его на мобильных
-document.addEventListener('click', function(event) {
-    const sidebar = document.getElementById('sidebarMenu');
-    const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
-    
-    if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
-        sidebar.classList.remove('show');
-    }
-});
 </script>
 {% endblock %}

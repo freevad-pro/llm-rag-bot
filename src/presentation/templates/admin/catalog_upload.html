@@ -258,12 +258,6 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     submitBtn.disabled = true;
 });
 
-// Функция для переключения sidebar на мобильных
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebarMenu');
-    sidebar.classList.toggle('show');
-}
-
 // Предварительный просмотр выбранного файла
 document.getElementById('file').addEventListener('change', function(e) {
     const file = e.target.files[0];

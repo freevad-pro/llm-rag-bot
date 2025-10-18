@@ -244,62 +244,62 @@ function previewVersion(infoId) {
     console.log('Bootstrap:', typeof bootstrap);
     
     try {
-    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
-    const content = document.getElementById('previewContent');
-    
-    // Показываем спиннер
-    content.innerHTML = `
-        <div class="text-center py-3">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Загрузка...</span>
+        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        const content = document.getElementById('previewContent');
+        
+        // Показываем спиннер
+        content.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
             </div>
-        </div>
-    `;
-    
-    modal.show();
-    
-    // Загружаем данные
-    fetch(`/admin/company-info/preview/${infoId}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            content.innerHTML = `
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Файл:</strong></div>
-                    <div class="col-sm-9">${data.filename}</div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Версия:</strong></div>
-                    <div class="col-sm-9">
-                        <span class="badge ${data.is_active ? 'bg-success' : 'bg-secondary'}">
-                            v${data.version} ${data.is_active ? '(активная)' : ''}
-                        </span>
+        `;
+        
+        modal.show();
+        
+        // Загружаем данные
+        fetch(`/admin/company-info/preview/${infoId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                content.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Файл:</strong></div>
+                        <div class="col-sm-9">${data.filename}</div>
                     </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-sm-3"><strong>Размер:</strong></div>
-                    <div class="col-sm-9">${(data.file_size / 1024).toFixed(1)} KB</div>
-                </div>
-                <hr>
-                <h6>Содержимое:</h6>
-                <div class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
-                    <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">${data.content}</pre>
-                </div>
-            `;
-        })
-        .catch(error => {
-            console.error('Ошибка при загрузке данных:', error);
-            content.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    Ошибка при загрузке данных: ${error.message}
-                </div>
-            `;
-        });
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Версия:</strong></div>
+                        <div class="col-sm-9">
+                            <span class="badge ${data.is_active ? 'bg-success' : 'bg-secondary'}">
+                                v${data.version} ${data.is_active ? '(активная)' : ''}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Размер:</strong></div>
+                        <div class="col-sm-9">${(data.file_size / 1024).toFixed(1)} KB</div>
+                    </div>
+                    <hr>
+                    <h6>Содержимое:</h6>
+                    <div class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
+                        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">${data.content}</pre>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке данных:', error);
+                content.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Ошибка при загрузке данных: ${error.message}
+                    </div>
+                `;
+            });
     } catch (error) {
         console.error('Ошибка в previewVersion:', error);
         alert('Ошибка при открытии предварительного просмотра: ' + error.message);
@@ -321,42 +321,42 @@ function deleteVersion(infoId, event) {
     console.log('Event:', event);
     
     try {
-    if (confirm('Удалить эту версию? Это действие нельзя отменить.')) {
-        // Показываем индикатор загрузки
-        const btn = event.target.closest('button');
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-        btn.disabled = true;
-        
-        fetch(`/admin/company-info/delete/${infoId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Показываем успешное сообщение и перезагружаем
-                alert('Версия успешно удалена');
-                location.reload();
-            } else {
-                throw new Error(data.message || 'Ошибка при удалении');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка при удалении:', error);
-            alert('Ошибка при удалении: ' + error.message);
-            // Восстанавливаем кнопку
-            btn.innerHTML = originalContent;
-            btn.disabled = false;
-        });
-    }
+        if (confirm('Удалить эту версию? Это действие нельзя отменить.')) {
+            // Показываем индикатор загрузки
+            const btn = event.target.closest('button');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+            btn.disabled = true;
+            
+            fetch(`/admin/company-info/delete/${infoId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Показываем успешное сообщение и перезагружаем
+                    alert('Версия успешно удалена');
+                    location.reload();
+                } else {
+                    throw new Error(data.message || 'Ошибка при удалении');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при удалении:', error);
+                alert('Ошибка при удалении: ' + error.message);
+                // Восстанавливаем кнопку
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            });
+        }
     } catch (error) {
         console.error('Ошибка в deleteVersion:', error);
         alert('Ошибка при удалении: ' + error.message);

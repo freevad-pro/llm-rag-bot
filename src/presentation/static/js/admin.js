@@ -412,4 +412,39 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Admin Panel JS initialized');
 });
 
+/**
+ * Функция для переключения sidebar на мобильных устройствах
+ */
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebarMenu');
+    if (!sidebar) return;
+    
+    sidebar.classList.toggle('show');
+    
+    // Обновляем overlay если он есть
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (overlay) {
+        if (sidebar.classList.contains('show')) {
+            overlay.classList.add('show');
+        } else {
+            overlay.classList.remove('show');
+        }
+    }
+};
+
+/**
+ * Автоматически скрываем sidebar при клике вне его на мобильных
+ */
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebarMenu');
+    if (!sidebar) return;
+    
+    const toggleBtn = event.target.closest('.btn[onclick*="toggleSidebar"]');
+    const overlay = document.querySelector('.sidebar-overlay');
+    
+    if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
+        sidebar.classList.remove('show');
+        if (overlay) overlay.classList.remove('show');
+    }
+});
 

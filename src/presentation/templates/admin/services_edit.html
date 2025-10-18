@@ -223,31 +223,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-    // Функция для переключения sidebar на мобильных
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebarMenu');
-        sidebar.classList.toggle('show');
-        const overlay = document.querySelector('.sidebar-overlay');
-        if (sidebar.classList.contains('show')) {
-            overlay.classList.add('show');
-        } else {
-            overlay.classList.remove('show');
-        }
-    }
-
-    // Скрываем sidebar при клике вне его на мобильных
-    document.addEventListener('click', function(event) {
-        const sidebar = document.getElementById('sidebarMenu');
-        const toggleBtn = event.target.closest('.btn[onclick="toggleSidebar()"]');
-        const overlay = document.querySelector('.sidebar-overlay');
-        
-        if (!sidebar.contains(event.target) && !toggleBtn && window.innerWidth <= 767) {
-            sidebar.classList.remove('show');
-            overlay.classList.remove('show');
-        }
-    });
-</script>
+<script></script>
 {% endblock %}
 
 
