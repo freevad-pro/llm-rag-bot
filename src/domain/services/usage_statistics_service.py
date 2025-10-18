@@ -188,6 +188,49 @@ class UsageStatisticsService:
             await session.rollback()
             return False
     
+    async def update_price_per_1k_tokens(
+        self,
+        session: AsyncSession,
+        stat_id: int,
+        price_per_1k_tokens: str,
+        currency: str
+    ) -> bool:
+        """Обновляет цену за 1K токенов для записи по ID"""
+        try:
+            query = select(UsageStatisticsModel).where(UsageStatisticsModel.id == stat_id)
+            result = await session.execute(query)
+            record = result.scalar_one_or_none()
+            
+            if record:
+                record.price_per_1k_tokens = price_per_1k_tokens
+                record.currency = currency
+                record.updated_at = datetime.now()
+                
+                await session.commit()
+                
+                await hybrid_logger.business(
+                    f"Обновлена цена для записи ID {stat_id}: {price_per_1k_tokens} {currency}",
+                    metadata={
+                        "stat_id": stat_id,
+                        "provider": record.provider,
+                        "model": record.model,
+                        "year": record.year,
+                        "month": record.month,
+                        "price": price_per_1k_tokens,
+                        "currency": currency
+                    }
+                )
+                
+                return True
+            else:
+                self._logger.warning(f"Запись с ID {stat_id} не найдена")
+                return False
+                
+        except Exception as e:
+            self._logger.error(f"Ошибка обновления цены по ID: {e}")
+            await session.rollback()
+            return False
+    
     async def get_all_statistics(
         self,
         session: AsyncSession,

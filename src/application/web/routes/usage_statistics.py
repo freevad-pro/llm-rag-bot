@@ -35,7 +35,21 @@ async def usage_statistics_page(
     """
     try:
         # Получаем статистику за последние 12 месяцев
-        all_stats = await usage_statistics_service.get_all_usage_statistics(session, limit=120)
+        all_stats = await usage_statistics_service.get_all_statistics(session, limit=120)
+        
+        # Проверяем, есть ли данные
+        if not all_stats:
+            # Если данных нет, возвращаем пустую статистику
+            return templates.TemplateResponse(
+                "admin/usage_statistics.html",
+                {
+                    "request": request,
+                    "current_user": current_user,
+                    "page_title": "Статистика использования AI",
+                    "monthly_stats": [],
+                    "current_month": f"{datetime.now().year}-{datetime.now().month:02d}"
+                }
+            )
         
         # Группируем по месяцам
         monthly_stats = {}
