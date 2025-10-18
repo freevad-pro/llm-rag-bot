@@ -44,10 +44,12 @@ class LeadHandlers:
         """Регистрация всех обработчиков"""
         
         # Добавляем обработчик help для совместимости с lead_keyboards
-        self.router.callback_query.register(
-            self.handle_help_callback,
-            F.data == "help"
-        )
+        # Убираю его потому что он вызывается из basic_handlers basic_handlers.py. 
+        # Если вызывать здесь - то он будет блокировать там.
+        #self.router.callback_query.register(
+        #    self.handle_help_callback,
+        #    F.data == "help"
+        #)
         
         # Callback handlers
         self.router.callback_query.register(
@@ -809,31 +811,30 @@ class LeadHandlers:
     async def _notify_managers(self, session: AsyncSession, lead, chat_id: int) -> None:
         """Уведомление менеджеров о новом лиде"""
         try:
-            # Получаем экземпляр бота из контекста
-            from aiogram import Bot
-            from src.config.settings import settings
+            # Используем контекстный менеджер для правильного управления ресурсами
+            from src.infrastructure.utils.bot_utils import get_bot_for_notifications
             from src.infrastructure.notifications.telegram_notifier import get_telegram_notifier
             
-            bot = Bot(token=settings.bot_token)
-            notifier = get_telegram_notifier(bot)
-            
-            # Отправляем уведомление
-            success = await notifier.notify_new_lead(lead, chat_id)
-            
-            if success:
-                await hybrid_logger.business(
-                    "Уведомление о лиде отправлено менеджерам",
-                    {
-                        "lead_id": lead.id,
-                        "chat_id": chat_id,
-                        "auto_created": lead.auto_created
-                    }
-                )
-            else:
-                await hybrid_logger.warning(
-                    "Не удалось отправить уведомление менеджерам",
-                    {"lead_id": lead.id}
-                )
+            async with get_bot_for_notifications() as bot:
+                notifier = get_telegram_notifier(bot)
+                
+                # Отправляем уведомление
+                success = await notifier.notify_new_lead(lead, chat_id)
+                
+                if success:
+                    await hybrid_logger.business(
+                        "Уведомление о лиде отправлено менеджерам",
+                        {
+                            "lead_id": lead.id,
+                            "chat_id": chat_id,
+                            "auto_created": lead.auto_created
+                        }
+                    )
+                else:
+                    await hybrid_logger.warning(
+                        "Не удалось отправить уведомление менеджерам",
+                        {"lead_id": lead.id}
+                    )
                 
         except Exception as e:
             await hybrid_logger.error(f"Ошибка уведомления менеджеров: {e}")

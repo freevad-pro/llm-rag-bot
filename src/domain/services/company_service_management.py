@@ -237,7 +237,7 @@ class CompanyServiceManagementService:
     
     async def get_services_by_category(self, session: AsyncSession, category: ServiceCategory) -> List[CompanyService]:
         """Получить услуги по категории"""
-        return await self.get_all_services(session, active_only=True, category=category)
+        return await self.get_all_services(session, active_only=True, category_id=category.id)
     
     async def search_services(self, session: AsyncSession, search_term: str) -> List[CompanyService]:
         """Поиск услуг по термину"""

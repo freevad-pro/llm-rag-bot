@@ -19,7 +19,6 @@ class CostAlertService:
     def __init__(self):
         self.settings = get_settings()
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        self._bot = None  # Будет инициализирован при первом использовании
     
     async def check_and_send_alerts(self, session: AsyncSession) -> bool:
         """
@@ -177,13 +176,6 @@ class CostAlertService:
         except Exception as e:
             self._logger.error(f"Ошибка при отправке еженедельного отчета: {e}")
     
-    async def _get_bot(self):
-        """Получает экземпляр бота для отправки уведомлений"""
-        if self._bot is None:
-            from aiogram import Bot
-            self._bot = Bot(token=self.settings.bot_token)
-        return self._bot
-    
     async def _send_to_admins(self, message: str) -> None:
         """Отправляет сообщение всем администраторам"""
         
@@ -197,18 +189,20 @@ class CostAlertService:
             return
         
         try:
-            bot = await self._get_bot()
+            # Используем контекстный менеджер для правильного управления ресурсами
+            from src.infrastructure.utils.bot_utils import get_bot_for_notifications
             
-            for admin_id in admin_ids:
-                try:
-                    await bot.send_message(
-                        chat_id=admin_id, 
-                        text=message,
-                        parse_mode="Markdown"
-                    )
-                    self._logger.info(f"Алерт отправлен администратору {admin_id}")
-                except Exception as e:
-                    self._logger.error(f"Ошибка отправки алерта администратору {admin_id}: {e}")
+            async with get_bot_for_notifications() as bot:
+                for admin_id in admin_ids:
+                    try:
+                        await bot.send_message(
+                            chat_id=admin_id, 
+                            text=message,
+                            parse_mode="Markdown"
+                        )
+                        self._logger.info(f"Алерт отправлен администратору {admin_id}")
+                    except Exception as e:
+                        self._logger.error(f"Ошибка отправки алерта администратору {admin_id}: {e}")
                     
         except Exception as e:
             self._logger.error(f"Ошибка инициализации бота для алертов: {e}")
