@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Админ-панель{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок с кнопкой назад -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="/admin/leads" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left"></i> Назад к списку
+            </a>
+            <h2 class="d-inline-block mb-0"><i class="bi bi-person-lines-fill"></i> {{ page_title }}</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Основная информация о лиде -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person"></i> Информация о лиде</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Имя:</label>
+                                <p class="form-control-plaintext">{{ lead.name or 'Не указано' }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Email:</label>
+                                <p class="form-control-plaintext">
+                                    {% if lead.email %}
+                                        <a href="mailto:{{ lead.email }}">{{ lead.email }}</a>
+                                    {% else %}
+                                        Не указан
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Телефон:</label>
+                                <p class="form-control-plaintext">
+                                    {% if lead.phone %}
+                                        <a href="tel:{{ lead.phone }}">{{ lead.phone }}</a>
+                                    {% else %}
+                                        Не указан
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Telegram:</label>
+                                <p class="form-control-plaintext">{{ lead.telegram or 'Не указан' }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Компания:</label>
+                                <p class="form-control-plaintext">{{ lead.company or 'Не указана' }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Статус:</label>
+                                <p class="form-control-plaintext">
+                                    {% if lead.status == 'pending_sync' %}
+                                        <span class="badge bg-warning">Ожидает синхронизации</span>
+                                    {% elif lead.status == 'synced' %}
+                                        <span class="badge bg-success">Синхронизирован</span>
+                                    {% elif lead.status == 'failed' %}
+                                        <span class="badge bg-danger">Ошибка синхронизации</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ lead.status }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if lead.question %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Вопрос/Сообщение:</label>
+                            <div class="border rounded p-3 bg-light">
+                                {{ lead.question }}
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Источник:</label>
+                                <p class="form-control-plaintext">{{ lead.lead_source or 'Не указан' }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Дата создания:</label>
+                                <p class="form-control-plaintext">
+                                    {% if lead.created_at %}
+                                        {{ lead.created_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                                    {% else %}
+                                        Не указана
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if lead.zoho_lead_id %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ID в Zoho CRM:</label>
+                            <p class="form-control-plaintext">{{ lead.zoho_lead_id }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- История взаимодействий -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-dots"></i> История взаимодействий</h5>
+                </div>
+                <div class="card-body">
+                    {% if interactions %}
+                        <div class="timeline">
+                            {% for interaction in interactions %}
+                                <div class="timeline-item mb-3">
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0 me-3">
+                                            {% if interaction.interaction_type == 'note' %}
+                                                <i class="bi bi-sticky text-primary"></i>
+                                            {% elif interaction.interaction_type == 'status_change' %}
+                                                <i class="bi bi-arrow-repeat text-warning"></i>
+                                            {% elif interaction.interaction_type == 'call' %}
+                                                <i class="bi bi-telephone text-success"></i>
+                                            {% elif interaction.interaction_type == 'email' %}
+                                                <i class="bi bi-envelope text-info"></i>
+                                            {% elif interaction.interaction_type == 'meeting' %}
+                                                <i class="bi bi-calendar-event text-purple"></i>
+                                            {% else %}
+                                                <i class="bi bi-chat-dots text-secondary"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="card">
+                                                <div class="card-body py-2">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <strong>
+                                                                {% if interaction.interaction_type == 'note' %}
+                                                                    Заметка
+                                                                {% elif interaction.interaction_type == 'status_change' %}
+                                                                    Изменение статуса
+                                                                {% elif interaction.interaction_type == 'call' %}
+                                                                    Звонок
+                                                                {% elif interaction.interaction_type == 'email' %}
+                                                                    Email
+                                                                {% elif interaction.interaction_type == 'meeting' %}
+                                                                    Встреча
+                                                                {% else %}
+                                                                    {{ interaction.interaction_type }}
+                                                                {% endif %}
+                                                            </strong>
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            {% if interaction.created_at %}
+                                                                {{ interaction.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                                            {% endif %}
+                                                        </small>
+                                                    </div>
+                                                    <p class="mb-0 mt-1">{{ interaction.content }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-chat-dots text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">История взаимодействий пуста</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Боковая панель с действиями -->
+        <div class="col-md-4">
+            <!-- Изменение статуса -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> Изменить статус</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/leads/{{ lead.id }}/update-status">
+                        <div class="mb-3">
+                            <label for="new_status" class="form-label">Новый статус:</label>
+                            <select class="form-select" id="new_status" name="new_status" required>
+                                <option value="pending_sync" {% if lead.status == 'pending_sync' %}selected{% endif %}>Ожидает синхронизации</option>
+                                <option value="synced" {% if lead.status == 'synced' %}selected{% endif %}>Синхронизирован</option>
+                                <option value="failed" {% if lead.status == 'failed' %}selected{% endif %}>Ошибка синхронизации</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Заметка (необязательно):</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Дополнительная информация..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-check"></i> Обновить статус
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Добавить заметку -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-sticky"></i> Добавить заметку</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/leads/{{ lead.id }}/add-note">
+                        <div class="mb-3">
+                            <label for="note_text" class="form-label">Текст заметки:</label>
+                            <textarea class="form-control" id="note_text" name="note_text" rows="4" required placeholder="Введите заметку..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-plus"></i> Добавить заметку
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline-item {
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 30px;
+    bottom: -15px;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.text-purple {
+    color: #6f42c1 !important;
+}
+</style>
+{% endblock %}

@@ -70,6 +70,28 @@ class Lead(Base):
     user = relationship("User", back_populates="leads")
 
 
+class LeadInteraction(Base):
+    """
+    Взаимодействия с лидами (заметки, изменения статуса и т.д.)
+    """
+    __tablename__ = "lead_interactions"
+    
+    id = Column(BigInteger, primary_key=True)
+    lead_id = Column(BigInteger, ForeignKey("leads.id"), nullable=False)
+    
+    # Тип взаимодействия
+    interaction_type = Column(String(50), nullable=False)  # note, status_change, call, email, meeting, qualification
+    content = Column(Text, nullable=False)
+    
+    # Метаданные
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(BigInteger, ForeignKey("admin_users.id"), nullable=True)
+    
+    # Отношения
+    lead = relationship("Lead", backref="interactions")
+    admin_user = relationship("AdminUser", backref="lead_interactions")
+
+
 class Conversation(Base):
     """
     Диалоги пользователей с ботом

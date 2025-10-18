@@ -25,6 +25,18 @@ from ....presentation.template_config import templates
 catalog_router = APIRouter(prefix="/admin/catalog", tags=["catalog"])
 
 
+@catalog_router.get("/", response_class=HTMLResponse)
+async def catalog_dashboard(
+    request: Request,
+    current_user: AdminUser = Depends(require_manager_or_admin)
+):
+    """
+    Главная страница управления каталогом.
+    Редирект на страницу загрузки.
+    """
+    return RedirectResponse(url="/admin/catalog/upload", status_code=302)
+
+
 @catalog_router.get("/upload", response_class=HTMLResponse)
 async def catalog_upload_page(
     request: Request,

@@ -35,6 +35,7 @@ from src.application.web.routes.company_info import router as company_info_route
 from src.application.web.routes.database import router as database_router
 from src.application.web.routes.system_settings import router as system_settings_router
 from src.application.web.routes.usage_statistics import router as usage_statistics_router
+from src.application.web.routes.leads import router as leads_router
 
 
 async def create_default_admin():
@@ -206,6 +207,7 @@ app.include_router(company_info_router)
 app.include_router(database_router)
 app.include_router(system_settings_router)
 app.include_router(usage_statistics_router)
+app.include_router(leads_router)
 
 
 @app.get("/health")
