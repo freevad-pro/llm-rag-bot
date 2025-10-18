@@ -73,15 +73,6 @@
             </li>
             {% endif %}
 
-            {% if current_user.can_manage_services() %}
-            <li class="nav-item">
-                <a class="nav-link" href="/admin/services">
-                    <i class="bi bi-gear"></i>
-                    Услуги компании
-                </a>
-            </li>
-            {% endif %}
-
             <!-- Аналитика -->
             {% if current_user.can_view_basic_stats() %}
             <li class="nav-item">

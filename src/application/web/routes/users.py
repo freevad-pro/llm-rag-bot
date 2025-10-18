@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated, Optional
 import logging
 
-from ....infrastructure.database.connection import get_async_session
+from ....infrastructure.database.connection import get_session
 from ....domain.services.user_management import UserManagementService
 from ....domain.entities.admin_user import AdminUser, AdminRole
 from .admin import require_admin_only
@@ -23,7 +23,7 @@ templates = Jinja2Templates(directory="src/presentation/templates")
 async def users_list(
     request: Request,
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Список всех пользователей"""
     try:
@@ -80,7 +80,7 @@ async def create_user_post(
     role: Annotated[str, Form()],
     is_active: Annotated[bool, Form()] = True,
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Создание нового пользователя"""
     try:
@@ -132,7 +132,7 @@ async def edit_user_page(
     request: Request,
     user_id: int,
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Страница редактирования пользователя"""
     try:
@@ -172,7 +172,7 @@ async def edit_user_post(
     role: Annotated[str, Form()],
     is_active: Annotated[bool, Form()] = True,
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Обновление данных пользователя"""
     try:
@@ -232,7 +232,7 @@ async def toggle_user_status(
     request: Request,
     user_id: int,
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Переключить статус пользователя (активный/заблокированный)"""
     try:
@@ -266,7 +266,7 @@ async def change_user_password(
     user_id: int,
     new_password: Annotated[str, Form()],
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Принудительная смена пароля пользователя"""
     try:
@@ -297,7 +297,7 @@ async def delete_user(
     request: Request,
     user_id: int,
     current_user: AdminUser = Depends(require_admin_only),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Удаление пользователя"""
     try:

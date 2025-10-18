@@ -9,7 +9,7 @@ from typing import Annotated, Optional
 import logging
 from datetime import datetime, timedelta
 
-from ....infrastructure.database.connection import get_async_session
+from ....infrastructure.database.connection import get_session
 from ....domain.services.lead_management import LeadManagementService
 from ....domain.entities.admin_user import AdminUser
 from .admin import require_admin_user, require_manager_or_admin
@@ -24,7 +24,7 @@ templates = Jinja2Templates(directory="src/presentation/templates")
 async def leads_list(
     request: Request,
     current_user: AdminUser = Depends(require_manager_or_admin),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     status_filter: Optional[str] = Query(None),
@@ -74,7 +74,7 @@ async def lead_detail(
     lead_id: int,
     request: Request,
     current_user: AdminUser = Depends(require_manager_or_admin),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Детальная информация о лиде"""
     try:
@@ -111,7 +111,7 @@ async def update_lead_status(
     new_status: str = Form(...),
     notes: Optional[str] = Form(None),
     current_user: AdminUser = Depends(require_manager_or_admin),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Обновление статуса лида"""
     try:
@@ -147,7 +147,7 @@ async def add_lead_note(
     request: Request,
     note_text: str = Form(...),
     current_user: AdminUser = Depends(require_manager_or_admin),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """Добавление заметки к лиду"""
     try:
@@ -180,7 +180,7 @@ async def add_lead_note(
 async def export_leads_csv(
     request: Request,
     current_user: AdminUser = Depends(require_manager_or_admin),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
     status_filter: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None)
@@ -231,7 +231,7 @@ async def export_leads_csv(
 async def leads_stats_dashboard(
     request: Request,
     current_user: AdminUser = Depends(require_manager_or_admin),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
     period_days: int = Query(30, ge=1, le=365)
 ):
     """Статистика лидов для дашборда"""

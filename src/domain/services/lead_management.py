@@ -6,7 +6,6 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
 import csv
 import io
 
@@ -29,7 +28,7 @@ class LeadManagementService:
         """Получение лидов с пагинацией и фильтрацией"""
         
         # Базовый запрос
-        query = select(Lead).options(selectinload(Lead.interactions))
+        query = select(Lead)
         
         # Применяем фильтры
         filters = []
@@ -89,7 +88,7 @@ class LeadManagementService:
     
     async def get_lead_by_id(self, lead_id: int) -> Optional[Lead]:
         """Получение лида по ID"""
-        query = select(Lead).options(selectinload(Lead.interactions)).where(Lead.id == lead_id)
+        query = select(Lead).where(Lead.id == lead_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
     
