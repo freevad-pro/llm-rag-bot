@@ -13,12 +13,15 @@ from starlette.requests import Request
 from contextlib import asynccontextmanager
 from datetime import datetime
 import asyncio
+import bcrypt
+from sqlalchemy import select
 
 # Отключаем телеметрию aiogram (исправляет ошибку capture())
 os.environ["AIOGRAM_DISABLE_TELEMETRY"] = "1"
 
 from src.config.settings import settings
-from src.infrastructure.database.connection import create_tables, get_db_health
+from src.infrastructure.database.connection import create_tables, get_db_health, get_session
+from src.infrastructure.database.models import AdminUser
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
 from src.application.telegram.bot import start_bot, stop_bot
 from src.application.web.routes.admin import admin_router
@@ -32,6 +35,50 @@ from src.application.web.routes.company_info import router as company_info_route
 from src.application.web.routes.database import router as database_router
 from src.application.web.routes.system_settings import router as system_settings_router
 from src.application.web.routes.usage_statistics import router as usage_statistics_router
+
+
+async def create_default_admin():
+    """
+    Создает администратора по умолчанию при первом запуске приложения.
+    Выполняется только если в системе нет ни одного администратора.
+    """
+    try:
+        async for session in get_session():
+            # Проверяем, есть ли уже администраторы
+            result = await session.execute(select(AdminUser))
+            existing_admin = result.scalar_one_or_none()
+            
+            if existing_admin:
+                await hybrid_logger.info(f"Администратор уже существует: {existing_admin.username}")
+                return
+            
+            # Создаем администратора по умолчанию
+            username = "admin"
+            password = "admin123"
+            email = "admin@example.com"
+            
+            # Хешируем пароль
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            
+            admin_user = AdminUser(
+                username=username,
+                email=email,
+                password_hash=password_hash,
+                role="ADMIN",
+                is_active=True,
+                first_name="Администратор",
+                last_name="Системы"
+            )
+            
+            session.add(admin_user)
+            await session.commit()
+            
+            await hybrid_logger.info(f"Создан администратор по умолчанию: {username}")
+            await hybrid_logger.warning("⚠️  ВАЖНО: Смените пароль администратора после первого входа!")
+            return
+            
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка создания администратора по умолчанию: {e}")
 
 
 class TelegramCSPMiddleware(BaseHTTPMiddleware):
@@ -68,6 +115,9 @@ async def lifespan(app: FastAPI):
         # Инициализация БД
         await create_tables()
         await hybrid_logger.info("База данных инициализирована")
+        
+        # Создание администратора по умолчанию (если не существует)
+        await create_default_admin()
         
         # Запуск Telegram бота если токен настроен И бот не отключен
         if settings.bot_token and not settings.disable_telegram_bot:
