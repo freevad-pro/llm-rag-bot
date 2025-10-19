@@ -170,6 +170,7 @@ for i in {1..60}; do
 done
 
 log "📋 Копируем скрипты управления..."
+mkdir -p $SCRIPTS_DIR
 cp $APP_DIR/scripts/*.sh $SCRIPTS_DIR/
 chmod +x $SCRIPTS_DIR/*.sh
 
