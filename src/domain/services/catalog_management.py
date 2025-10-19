@@ -5,6 +5,8 @@
 
 import asyncio
 import logging
+import gc
+import psutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -47,6 +49,19 @@ class CatalogManagementService:
         # Инициализируем сервисы
         self.catalog_service = CatalogSearchService()
         self.excel_loader = ExcelCatalogLoader()
+    
+    def _monitor_memory(self) -> float:
+        """
+        Мониторинг использования памяти.
+        
+        Returns:
+            Потребление памяти в MB
+        """
+        try:
+            process = psutil.Process()
+            return process.memory_info().rss / 1024 / 1024  # MB
+        except Exception:
+            return 0.0
     
     async def create_catalog_version(
         self,
@@ -123,14 +138,25 @@ class CatalogManagementService:
             
             self.logger.info(f"Начинаю переиндексацию каталога: {file_path}")
             
-            # Шаг 1: Загружаем товары из Excel
+            # Шаг 1: Загружаем товары из Excel с мониторингом памяти
             await self._update_version_progress(version.id, 10, "Загрузка товаров из Excel...")
+            
+            initial_memory = self._monitor_memory()
+            self.logger.info(f"Память перед загрузкой Excel: {initial_memory:.1f} MB")
+            
             products = await self.excel_loader.load_products(file_path)
             
             if not products:
                 raise ValueError("В файле не найдено товаров для индексации")
             
-            self.logger.info(f"Загружено {len(products)} товаров из Excel")
+            loaded_memory = self._monitor_memory()
+            self.logger.info(f"Загружено {len(products)} товаров из Excel. Память после загрузки: {loaded_memory:.1f} MB (+{loaded_memory-initial_memory:.1f} MB)")
+            
+            # Если память выросла слишком сильно - принудительная очистка
+            if loaded_memory - initial_memory > 500:  # Если загрузка добавила больше 500MB
+                self.logger.warning(f"Большой рост памяти при загрузке Excel: +{loaded_memory-initial_memory:.1f} MB")
+                gc.collect()
+                await asyncio.sleep(2)
             
             # Шаг 2: Blue-Green индексация
             await self._update_version_progress(version.id, 20, "Создание новой коллекции...")
@@ -194,7 +220,7 @@ class CatalogManagementService:
         version_id: int
     ) -> None:
         """
-        Индексирует товары в указанную коллекцию с отслеживанием прогресса.
+        Индексирует товары в указанную коллекцию с отслеживанием прогресса и оптимизацией памяти.
         
         Args:
             products: Список товаров для индексации
@@ -202,7 +228,7 @@ class CatalogManagementService:
             version_id: ID версии каталога
         """
         total_products = len(products)
-        batch_size = 100  # Индексируем по 100 товаров за раз
+        batch_size = 25  # Очень маленький batch для стабильности на 4GB RAM
         
         # Создаем новую коллекцию
         await self.catalog_service.create_collection(collection_name)
@@ -210,14 +236,39 @@ class CatalogManagementService:
         for i in range(0, total_products, batch_size):
             batch = products[i:i + batch_size]
             
-            # Индексируем батч
-            await self.catalog_service.index_products_batch(batch, collection_name)
-            
-            # Обновляем прогресс (20% - 90%)
-            progress = 20 + int((i + len(batch)) / total_products * 70)
-            message = f"Индексировано {i + len(batch)} из {total_products} товаров..."
-            
-            await self._update_version_progress(version_id, progress, message)
+            try:
+                # Индексируем батч
+                await self.catalog_service.index_products_batch(batch, collection_name)
+                
+                # Обновляем прогресс (20% - 90%)
+                progress = 20 + int((i + len(batch)) / total_products * 70)
+                message = f"Индексировано {i + len(batch)} из {total_products} товаров..."
+                
+                await self._update_version_progress(version_id, progress, message)
+                
+                # Принудительная очистка памяти каждые 100 товаров
+                if (i + len(batch)) % 100 == 0:
+                    gc.collect()
+                    await asyncio.sleep(1.0)  # Больше времени для освобождения памяти
+                    
+                    # Мониторинг памяти
+                    memory_mb = self._monitor_memory()
+                    self.logger.info(f"Обработано {i + len(batch)}/{total_products}, RAM: {memory_mb:.1f} MB")
+                    
+                    # Если память больше 2.5GB - агрессивная очистка
+                    if memory_mb > 2500:
+                        self.logger.warning(f"Высокое потребление памяти: {memory_mb:.1f} MB - принудительная очистка")
+                        gc.collect()
+                        await asyncio.sleep(3)  # Долгая пауза для стабилизации
+                
+                # Очищаем ссылки на batch
+                del batch
+                
+            except Exception as e:
+                self.logger.error(f"Ошибка индексации батча {i}-{i + batch_size}: {e}")
+                gc.collect()
+                await asyncio.sleep(5)  # Пауза при ошибке
+                continue
             
             # Небольшая пауза для снижения нагрузки
             await asyncio.sleep(0.1)

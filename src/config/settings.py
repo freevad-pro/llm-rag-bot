@@ -48,8 +48,8 @@ class Settings:
         
         # Поиск и эмбеддинги
         self.embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "sentence-transformers")  # openai or sentence-transformers
-        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-        self.embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
+        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")  # Качественная многоязычная модель
+        self.embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "8"))  # Очень маленький batch для стабильности
         
         # Пути
         self.chroma_persist_dir: str = os.getenv("CHROMA_PERSIST_DIR", "/app/data/chroma")

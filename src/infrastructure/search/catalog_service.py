@@ -6,6 +6,10 @@
 import logging
 import hashlib
 import warnings
+import gc
+import psutil
+import time
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -596,7 +600,7 @@ class CatalogSearchService(BaseSearchService):
     
     async def index_products_batch(self, products: list, collection_name: str) -> None:
         """
-        Индексирует батч товаров в указанную коллекцию.
+        Индексирует батч товаров в указанную коллекцию с оптимизацией памяти.
         
         Args:
             products: Список товаров для индексации
@@ -632,6 +636,13 @@ class CatalogSearchService(BaseSearchService):
                 documents=documents,
                 metadatas=metadatas
             )
+            
+            # Агрессивная очистка памяти
+            del ids, documents, metadatas
+            gc.collect()
+            
+            # Дополнительная пауза для стабилизации
+            await asyncio.sleep(0.2)
             
             self._logger.debug(f"Проиндексировано {len(products)} товаров в коллекцию {collection_name}")
             
