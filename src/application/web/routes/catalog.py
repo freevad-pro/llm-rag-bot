@@ -20,6 +20,7 @@ from ....infrastructure.database.connection import get_session
 from ....infrastructure.logging.hybrid_logger import hybrid_logger
 from ....config.settings import settings
 from ....presentation.template_config import templates
+from ....infrastructure.utils.timezone_utils import format_moscow_datetime
 
 # Роутер для управления каталогом
 catalog_router = APIRouter(prefix="/admin/catalog", tags=["catalog"])
@@ -219,8 +220,8 @@ async def catalog_status_api(
         "progress": status.get("progress", 0),
         "message": status.get("message", ""),
         "products_count": status.get("products_count", 0),
-        "started_at": status.get("started_at"),
-        "estimated_completion": status.get("estimated_completion")
+        "started_at": format_moscow_datetime(status.get("started_at")),
+        "estimated_completion": format_moscow_datetime(status.get("estimated_completion"))
     })
 
 
