@@ -21,23 +21,21 @@ class ExcelCatalogLoader:
     Загрузчик каталога товаров из Excel файлов.
     
     Поддерживает структуру из @product_idea.md:
-    - Обязательные поля: id, product name, category 1, article
-    - Опциональные поля: description, category 2, category 3, photo_url, page_url
+    - Все поля опциональные: id, product name, description, category 1, category 2, category 3, article, photo_url, page_url
+    - Если поле пустое, используется значение по умолчанию (None или пустая строка)
     - Любые другие колонки игнорируются
     """
     
     # Маппинг колонок Excel в атрибуты Product
-    REQUIRED_COLUMNS = {
+    # Все поля теперь опциональные - если поле пустое, используется значение по умолчанию
+    COLUMN_MAPPING = {
         'id': 'id',
         'product name': 'product_name',
-        'category 1': 'category_1',
-        'article': 'article'
-    }
-    
-    OPTIONAL_COLUMNS = {
         'description': 'description',
+        'category 1': 'category_1',
         'category 2': 'category_2',
         'category 3': 'category_3',
+        'article': 'article',
         'photo_url': 'photo_url',
         'page_url': 'page_url'
     }
@@ -67,14 +65,12 @@ class ExcelCatalogLoader:
         if not file_path.exists():
             raise FileNotFoundError(f"Excel файл не найден: {excel_path}")
         
-        # Валидируем структуру файла
+        # Валидируем структуру файла (все поля опциональные, поэтому проверка не критична)
         validation_result = self.validate_excel_structure(excel_path)
-        missing_columns = [col for col, exists in validation_result.items() if not exists]
         
-        if missing_columns:
-            raise ValueError(
-                f"В Excel файле отсутствуют обязательные колонки: {missing_columns}"
-            )
+        # Логируем найденные поля для информации
+        found_columns = [col for col, exists in validation_result.items() if exists]
+        self._logger.info(f"Найдены поля в Excel файле: {found_columns}")
         
         # Загружаем данные
         try:
@@ -108,7 +104,7 @@ class ExcelCatalogLoader:
             excel_path: Путь к Excel файлу
             
         Returns:
-            Словарь с результатами валидации обязательных полей
+            Словарь с результатами валидации полей (всегда True, так как все поля опциональные)
         """
         try:
             # Читаем только заголовки
@@ -117,16 +113,16 @@ class ExcelCatalogLoader:
             
             self._logger.debug(f"Найденные колонки: {available_columns}")
             
-            # Проверяем наличие обязательных колонок
+            # Все поля опциональные, поэтому всегда возвращаем True
             validation_result = {}
-            for required_col in self.REQUIRED_COLUMNS.keys():
-                validation_result[required_col] = required_col.lower() in available_columns
+            for col in self.COLUMN_MAPPING.keys():
+                validation_result[col] = True  # Все поля опциональные
             
             return validation_result
             
         except Exception as e:
             self._logger.error(f"Ошибка валидации структуры Excel: {e}")
-            return {col: False for col in self.REQUIRED_COLUMNS.keys()}
+            return {col: True for col in self.COLUMN_MAPPING.keys()}  # Все поля опциональные
     
     def _row_to_product(self, row: pd.Series) -> Product:
         """
@@ -142,19 +138,20 @@ class ExcelCatalogLoader:
             ValueError: Если не удается создать продукт
         """
         try:
-            # Получаем значения обязательных полей
+            # Получаем значения всех полей (все опциональные)
             product_data = {}
             
-            for excel_col, product_attr in self.REQUIRED_COLUMNS.items():
+            for excel_col, product_attr in self.COLUMN_MAPPING.items():
                 value = self._get_column_value(row, excel_col)
-                if not value.strip():
-                    raise ValueError(f"Обязательное поле '{excel_col}' пустое")
-                product_data[product_attr] = value.strip()
-            
-            # Получаем значения опциональных полей
-            for excel_col, product_attr in self.OPTIONAL_COLUMNS.items():
-                value = self._get_column_value(row, excel_col)
-                product_data[product_attr] = value.strip() if value.strip() else None
+                # Если поле пустое, используем значение по умолчанию
+                if value.strip():
+                    product_data[product_attr] = value.strip()
+                else:
+                    # Для строковых полей используем пустую строку, для остальных None
+                    if product_attr in ['id', 'product_name', 'description', 'category_1', 'category_2', 'category_3', 'article']:
+                        product_data[product_attr] = ""
+                    else:
+                        product_data[product_attr] = None
             
             return Product(**product_data)
             

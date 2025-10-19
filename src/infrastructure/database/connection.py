@@ -18,11 +18,24 @@ async_session_factory = async_sessionmaker(
 
 
 async def create_tables() -> None:
-    """Создание всех таблиц в БД"""
+    """
+    Создание всех таблиц в БД.
+    
+    ⚠️ ВНИМАНИЕ: Эта функция используется только для development!
+    В production используйте миграции Alembic: alembic upgrade head
+    """
+    import os
+    from src.config.settings import settings
+    
+    # Проверяем, что мы в development режиме
+    if settings.environment == "production":
+        logger.warning("create_tables() отключена в production режиме. Используйте миграции Alembic!")
+        return
+    
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("База данных инициализирована успешно")
+        logger.info("База данных инициализирована успешно (development режим)")
     except Exception as e:
         logger.error(f"Ошибка инициализации БД: {e}")
         raise

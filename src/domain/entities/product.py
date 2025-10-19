@@ -13,22 +13,20 @@ class Product:
     Сущность товара из каталога.
     
     Поля соответствуют структуре Excel файла из @product_idea.md:
-    - Обязательные: id, product_name, category_1, article
-    - Опциональные: description, category_2, category_3, photo_url, page_url
+    - Все поля опциональные: id, product_name, description, category_1, category_2, category_3, article, photo_url, page_url
+    - Если поле пустое, используется значение по умолчанию
     """
     
-    # Обязательные поля
-    id: str
-    product_name: str    # наименование товара
-    category_1: str      # категория 1-го уровня
-    article: str         # артикул
-    
-    # Опциональные поля
-    description: Optional[str] = None  # описание
-    category_2: Optional[str] = None   # категория 2-го уровня
-    category_3: Optional[str] = None   # категория 3-го уровня
-    photo_url: Optional[str] = None    # ссылка на фото товара
-    page_url: Optional[str] = None     # ссылка на страницу товара на сайте
+    # Все поля опциональные с значениями по умолчанию
+    id: str = ""                    # уникальный ID
+    product_name: str = ""          # наименование товара
+    description: str = ""            # описание
+    category_1: str = ""            # категория 1-го уровня
+    category_2: str = ""            # категория 2-го уровня
+    category_3: str = ""            # категория 3-го уровня
+    article: str = ""               # артикул
+    photo_url: Optional[str] = None  # ссылка на фото товара
+    page_url: Optional[str] = None   # ссылка на страницу товара на сайте
     
     def get_search_text(self) -> str:
         """
