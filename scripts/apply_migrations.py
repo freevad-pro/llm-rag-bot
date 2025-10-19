@@ -15,7 +15,7 @@ async def apply_migrations():
     try:
         # Применяем все миграции до последней
         result = subprocess.run([
-            sys.executable, "-m", "alembic", "upgrade", "head"
+            "alembic", "upgrade", "head"
         ], capture_output=True, text=True, cwd=os.getcwd())
         
         if result.returncode == 0:

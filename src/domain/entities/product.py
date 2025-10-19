@@ -17,16 +17,16 @@ class Product:
     - Если поле пустое, используется значение по умолчанию
     """
     
-    # Все поля опциональные с значениями по умолчанию
-    id: str = ""                    # уникальный ID
-    product_name: str = ""          # наименование товара
-    description: str = ""            # описание
-    category_1: str = ""            # категория 1-го уровня
-    category_2: str = ""            # категория 2-го уровня
-    category_3: str = ""            # категория 3-го уровня
-    article: str = ""               # артикул
-    photo_url: Optional[str] = None  # ссылка на фото товара
-    page_url: Optional[str] = None   # ссылка на страницу товара на сайте
+    # Все поля опциональные
+    id: str = ""
+    product_name: str = ""
+    description: str = ""
+    category_1: str = ""
+    category_2: str = ""
+    category_3: str = ""
+    article: str = ""
+    photo_url: Optional[str] = None
+    page_url: Optional[str] = None
     
     def get_search_text(self) -> str:
         """
