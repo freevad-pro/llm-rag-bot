@@ -92,7 +92,7 @@ try {
             Write-Host "Нужно применить миграцию 008_rename_started_at_to_created_at" -ForegroundColor Yellow
             Write-Host ""
             Write-Host "🔧 Решение:" -ForegroundColor Blue
-            Write-Host "docker-compose -f $ComposeFile exec web python -m alembic upgrade head"
+            Write-Host "docker-compose -f $ComposeFile exec web alembic upgrade head"
         } elseif ($hasCreatedAt -and -not $hasStartedAt) {
             Write-Host "✅ Структура корректна - поле 'created_at' присутствует" -ForegroundColor Green
         } elseif ($hasStartedAt -and $hasCreatedAt) {
