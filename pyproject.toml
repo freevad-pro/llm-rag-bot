@@ -58,6 +58,7 @@ pydantic-settings = "^2.1.0"
 # Utilities
 python-dotenv = "^1.0.0"
 numpy = "^1.26.0"
+psutil = "^5.9.0"  # System and process monitoring
 
 [tool.poetry.group.dev.dependencies]
 # Testing framework
