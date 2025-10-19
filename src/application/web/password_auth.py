@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from ...domain.entities.admin_user import AdminUser, AdminRole
 from ...infrastructure.database.models import AdminUser as AdminUserModel
 from ...infrastructure.logging.hybrid_logger import hybrid_logger
+from ...infrastructure.notifications.email_service import email_service
 from ...config.settings import settings
 
 
@@ -155,7 +156,7 @@ class PasswordAuthService:
             await session.commit()
             
             # Отправляем email
-            await self._send_reset_email(user_model.email, reset_token)
+            await email_service.send_password_reset_email(user_model.email, reset_token)
             
             await hybrid_logger.info(f"Инициирован сброс пароля для: {email}")
             return True
@@ -195,18 +196,41 @@ class PasswordAuthService:
             await hybrid_logger.error(f"Ошибка сброса пароля: {e}")
             return False
     
-    async def _send_reset_email(self, email: str, token: str) -> None:
-        """Отправка email для сброса пароля (временно отключено)"""
+    async def update_profile(self, session: AsyncSession, user_id: int, email: str, first_name: str = None, last_name: str = None) -> bool:
+        """Обновление профиля пользователя"""
         try:
-            reset_url = f"http://127.0.0.1:8000/admin/reset-password?token={token}"
+            result = await session.execute(
+                select(AdminUserModel).where(AdminUserModel.id == user_id)
+            )
+            user_model = result.scalar_one_or_none()
             
-            # Временно логируем вместо отправки email
-            await hybrid_logger.info(f"[EMAIL SIMULATION] Сброс пароля для {email}")
-            await hybrid_logger.info(f"[EMAIL SIMULATION] Ссылка: {reset_url}")
-            await hybrid_logger.info(f"[EMAIL SIMULATION] Токен: {token}")
+            if not user_model:
+                return False
+            
+            # Проверяем уникальность email (если email изменился)
+            if user_model.email != email:
+                existing_user = await session.execute(
+                    select(AdminUserModel).where(AdminUserModel.email == email)
+                )
+                if existing_user.scalar_one_or_none():
+                    await hybrid_logger.warning(f"Попытка изменения email на уже существующий: {email}")
+                    return False
+            
+            # Обновляем поля
+            user_model.email = email
+            user_model.first_name = first_name
+            user_model.last_name = last_name
+            
+            session.add(user_model)
+            await session.commit()
+            
+            await hybrid_logger.info(f"Профиль обновлен для пользователя: {user_model.username}")
+            return True
             
         except Exception as e:
-            await hybrid_logger.error(f"Ошибка симуляции email: {e}")
+            await hybrid_logger.error(f"Ошибка обновления профиля: {e}")
+            return False
+    
 
 
 # Глобальный экземпляр сервиса

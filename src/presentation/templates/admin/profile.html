@@ -31,11 +31,15 @@
                 <!-- Информация о профиле -->
                 <div class="col-md-6">
                     <div class="card shadow-sm">
-                        <div class="card-header">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="bi bi-person-circle"></i>
                                 Информация о пользователе
                             </h5>
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleEditMode()">
+                                <i class="bi bi-pencil"></i>
+                                Редактировать
+                            </button>
                         </div>
                         <div class="card-body">
                             <div class="text-center mb-4">
@@ -46,48 +50,90 @@
                                 </span>
                             </div>
                             
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Логин:</strong></td>
-                                    <td>{{ current_user.username }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Email:</strong></td>
-                                    <td>{{ current_user.email }}</td>
-                                </tr>
-                                {% if current_user.first_name %}
-                                <tr>
-                                    <td><strong>Имя:</strong></td>
-                                    <td>{{ current_user.first_name }}</td>
-                                </tr>
-                                {% endif %}
-                                {% if current_user.last_name %}
-                                <tr>
-                                    <td><strong>Фамилия:</strong></td>
-                                    <td>{{ current_user.last_name }}</td>
-                                </tr>
-                                {% endif %}
-                                <tr>
-                                    <td><strong>Роль:</strong></td>
-                                    <td>
-                                        <span class="badge bg-{{ 'danger' if current_user.is_admin else 'success' }}">
-                                            {{ current_user.role.value }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% if current_user.created_at %}
-                                <tr>
-                                    <td><strong>Дата регистрации:</strong></td>
-                                    <td>{{ current_user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                                </tr>
-                                {% endif %}
-                                {% if current_user.last_login %}
-                                <tr>
-                                    <td><strong>Последний вход:</strong></td>
-                                    <td>{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') }}</td>
-                                </tr>
-                                {% endif %}
-                            </table>
+                            <!-- Режим просмотра -->
+                            <div id="profile-view-mode">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Логин:</strong></td>
+                                        <td>{{ current_user.username }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Email:</strong></td>
+                                        <td>{{ current_user.email }}</td>
+                                    </tr>
+                                    {% if current_user.first_name %}
+                                    <tr>
+                                        <td><strong>Имя:</strong></td>
+                                        <td>{{ current_user.first_name }}</td>
+                                    </tr>
+                                    {% endif %}
+                                    {% if current_user.last_name %}
+                                    <tr>
+                                        <td><strong>Фамилия:</strong></td>
+                                        <td>{{ current_user.last_name }}</td>
+                                    </tr>
+                                    {% endif %}
+                                    <tr>
+                                        <td><strong>Роль:</strong></td>
+                                        <td>
+                                            <span class="badge bg-{{ 'danger' if current_user.is_admin else 'success' }}">
+                                                {{ current_user.role.value }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% if current_user.created_at %}
+                                    <tr>
+                                        <td><strong>Дата регистрации:</strong></td>
+                                        <td>{{ current_user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                    </tr>
+                                    {% endif %}
+                                    {% if current_user.last_login %}
+                                    <tr>
+                                        <td><strong>Последний вход:</strong></td>
+                                        <td>{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') }}</td>
+                                    </tr>
+                                    {% endif %}
+                                </table>
+                            </div>
+
+                            <!-- Режим редактирования -->
+                            <div id="profile-edit-mode" style="display: none;">
+                                <div id="profile-messages">
+                                    <!-- Сообщения об ошибках и успехе будут здесь -->
+                                </div>
+                                
+                                <form hx-post="/admin/profile/update" hx-target="#profile-messages" hx-swap="innerHTML">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email *</label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ current_user.email }}" required>
+                                        <div class="form-text">На этот email приходят уведомления о восстановлении пароля</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="first_name" class="form-label">Имя</label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                                               value="{{ current_user.first_name or '' }}">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="last_name" class="form-label">Фамилия</label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                                               value="{{ current_user.last_name or '' }}">
+                                    </div>
+                                    
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-check"></i>
+                                            Сохранить
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="toggleEditMode()">
+                                            <i class="bi bi-x"></i>
+                                            Отмена
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -237,5 +283,26 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script></script>
+<script>
+function toggleEditMode() {
+    const viewMode = document.getElementById('profile-view-mode');
+    const editMode = document.getElementById('profile-edit-mode');
+    
+    if (viewMode.style.display === 'none') {
+        // Переключаемся в режим просмотра
+        viewMode.style.display = 'block';
+        editMode.style.display = 'none';
+        
+        // Очищаем сообщения
+        document.getElementById('profile-messages').innerHTML = '';
+    } else {
+        // Переключаемся в режим редактирования
+        viewMode.style.display = 'none';
+        editMode.style.display = 'block';
+        
+        // Очищаем сообщения
+        document.getElementById('profile-messages').innerHTML = '';
+    }
+}
+</script>
 {% endblock %}

@@ -155,6 +155,11 @@ class SettingsManagementService:
                 "DISABLE_TELEGRAM_BOT", self.settings.disable_telegram_bot,
                 "Отключить Telegram бота", "Запускать только веб-интерфейс",
                 "boolean", "env", True
+            ),
+            SettingItem(
+                "BASE_URL", self.settings.base_url,
+                "Базовый URL приложения", "URL для ссылок в email уведомлениях",
+                "text", "env", True
             )
         ]
         
@@ -455,5 +460,12 @@ class SettingsManagementService:
                     return False, "Значение должно быть от 0.0 до 1.0"
             except ValueError:
                 return False, "Значение должно быть числом от 0.0 до 1.0"
+        
+        elif key == "BASE_URL":
+            if not value.startswith(("http://", "https://")):
+                return False, "URL должен начинаться с http:// или https://"
+            if not value.endswith("/") and "/admin" not in value:
+                # Предупреждение, но не ошибка
+                pass
         
         return True, ""

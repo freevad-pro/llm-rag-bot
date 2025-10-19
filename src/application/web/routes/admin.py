@@ -371,6 +371,72 @@ async def admin_profile(
     return templates.TemplateResponse("admin/profile.html", context)
 
 
+@admin_router.post("/profile/update", response_class=HTMLResponse)
+async def update_profile_post(
+    request: Request,
+    email: str = Form(...),
+    first_name: str = Form(None),
+    last_name: str = Form(None),
+    current_user: AdminUser = Depends(require_admin_user)
+):
+    """
+    Обновление профиля администратора.
+    """
+    async with get_db_session() as session:
+        try:
+            # Валидация email
+            if not email or "@" not in email:
+                return HTMLResponse("""
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Введите корректный email адрес
+                    </div>
+                """)
+            
+            # Обновляем профиль
+            success = await password_auth_service.update_profile(
+                session, 
+                current_user.id, 
+                email, 
+                first_name, 
+                last_name
+            )
+            
+            if success:
+                # Обновляем данные в сессии
+                current_user.email = email
+                current_user.first_name = first_name
+                current_user.last_name = last_name
+                
+                return HTMLResponse("""
+                    <div class="alert alert-success" role="alert">
+                        <i class="bi bi-check-circle"></i>
+                        Профиль успешно обновлен
+                    </div>
+                    <script>
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    </script>
+                """)
+            else:
+                return HTMLResponse("""
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Ошибка при обновлении профиля. Возможно, email уже используется.
+                    </div>
+                """)
+                
+        except Exception as e:
+            await hybrid_logger.error(f"Ошибка обновления профиля: {e}")
+            return HTMLResponse("""
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Ошибка при обновлении профиля
+                </div>
+            """)
+
+
 @admin_router.get("/debug/config")
 async def debug_config():
     """

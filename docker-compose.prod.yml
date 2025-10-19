@@ -4,9 +4,16 @@
 # - bot: Telegram бот (отдельный процесс)
 # - postgres: База данных
 #
+# Структура Production:
+# /opt/llm-bot/
+# ├── app/       - Код приложения (из Git, обновляется)
+# ├── config/    - Конфигурация (.env файл, сохраняется)
+# ├── data/      - Данные (postgres, chroma, uploads, logs)
+# └── backups/   - Резервные копии
+#
 # Отличия от dev версии:
 # - Нет volume для hot reload кода
-# - Переменные окружения из внешнего .env файла
+# - Переменные окружения из /opt/llm-bot/config/.env
 # - Данные хранятся на хосте (не в Docker volumes)
 # - Health checks для всех сервисов
 # - Restart policies для автовосстановления

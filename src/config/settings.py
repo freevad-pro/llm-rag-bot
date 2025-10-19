@@ -58,6 +58,7 @@ class Settings:
         self.webhook_secret: str = os.getenv("WEBHOOK_SECRET", "")
         self.admin_secret_key: str = os.getenv("ADMIN_SECRET_KEY", "")
         self.secret_key: str = os.getenv("SECRET_KEY", "change-me-in-production-very-secret-key")
+        self.base_url: str = os.getenv("BASE_URL", "http://127.0.0.1:8000")
         
         # SMTP (опционально)
         self.smtp_host: str = os.getenv("SMTP_HOST", "")
