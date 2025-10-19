@@ -17,6 +17,7 @@ class Settings:
     
     def __init__(self):
         # Основные
+        self.environment: str = os.getenv("ENVIRONMENT", "production")
         self.database_url: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@postgres:5432/catalog_db")
         self.bot_token: str = os.getenv("BOT_TOKEN", "")
         self.bot_username: str = os.getenv("BOT_USERNAME", "")
