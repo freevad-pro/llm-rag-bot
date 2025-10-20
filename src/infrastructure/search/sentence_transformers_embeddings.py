@@ -42,8 +42,8 @@ class SentenceTransformersEmbeddingFunction(EmbeddingFunction):
         self._model = None
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
-        # Ленивая инициализация модели
-        self._initialize_model()
+        # НЕ загружаем модель при инициализации - только при первом использовании
+        # self._initialize_model()  # УБРАНО для ленивой загрузки
     
     def _initialize_model(self):
         """Инициализация модели Sentence-Transformers с обработкой сетевых ошибок."""
