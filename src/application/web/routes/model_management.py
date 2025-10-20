@@ -67,7 +67,7 @@ def get_model_size() -> Optional[int]:
 
 
 async def _download_model_task():
-    """Фоновая задача для скачивания модели."""
+    """Фоновая задача для скачивания модели через HuggingFace Hub с симуляцией прогресса."""
     global _download_status
     
     try:
@@ -77,37 +77,112 @@ async def _download_model_task():
         _download_status["error"] = None
         
         await hybrid_logger.info(f"Начало загрузки модели {settings.embedding_model}")
-        await asyncio.sleep(0.5)  # Даём UI обновиться
+        await asyncio.sleep(0.5)
         
         _download_status["progress"] = 10
         _download_status["message"] = "Подключение к HuggingFace Hub..."
         await asyncio.sleep(0.5)
         
-        # Импортируем в фоновой задаче чтобы не блокировать основной поток
-        from sentence_transformers import SentenceTransformer
+        # Импортируем huggingface_hub для надёжной загрузки
+        from huggingface_hub import snapshot_download
+        import os
+        
+        _download_status["progress"] = 15
+        _download_status["message"] = "Настройка загрузки..."
+        
+        # Увеличиваем таймауты для работы с большими файлами
+        os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '300'  # 5 минут на файл
         
         _download_status["progress"] = 20
-        _download_status["message"] = "Загрузка файлов модели (~350 MB)..."
+        _download_status["message"] = "Загрузка файлов модели (~470 MB)..."
         await asyncio.sleep(0.5)
         
-        # Загружаем модель - это автоматически скачает и закэширует её
-        # Процесс загрузки занимает 20-80% прогресса
-        _download_status["progress"] = 30
-        _download_status["message"] = "Скачивание модели... Это может занять 5-10 минут"
+        # Определяем путь для кэша
+        cache_dir = get_model_cache_path()
         
-        model = SentenceTransformer(settings.embedding_model)
+        # Создаём задачу для симуляции прогресса во время реальной загрузки
+        async def simulate_progress():
+            """Симуляция прогресса во время долгой загрузки."""
+            # Прогресс от 25% до 75% за ~15 минут (максимальное время загрузки)
+            for progress in range(25, 76):
+                if not _download_status["is_downloading"]:
+                    break
+                _download_status["progress"] = progress
+                if progress < 40:
+                    _download_status["message"] = f"Скачивание модели... {progress}% (это займёт 5-15 минут)"
+                elif progress < 60:
+                    _download_status["message"] = f"Загрузка продолжается... {progress}% (осталось ~10 минут)"
+                else:
+                    _download_status["message"] = f"Почти готово... {progress}% (осталось ~5 минут)"
+                await asyncio.sleep(12)  # ~51 шаг * 12 сек = ~10 минут на весь диапазон
+        
+        # Запускаем симуляцию прогресса параллельно
+        progress_task = asyncio.create_task(simulate_progress())
+        
+        _download_status["progress"] = 25
+        _download_status["message"] = "Скачивание модели... 25% (это может занять 5-15 минут)"
+        
+        # Загружаем модель через snapshot_download для надёжности
+        # Он умеет работать с редиректами, CDN, докачкой при обрыве
+        try:
+            local_dir = await asyncio.to_thread(
+                snapshot_download,
+                repo_id=settings.embedding_model,
+                cache_dir=str(cache_dir.parent),  # HF Hub сам создаст нужную структуру
+                resume_download=True,  # Докачка при обрыве
+                max_workers=4,  # Параллельная загрузка файлов
+                local_files_only=False
+            )
+            
+            # Останавливаем симуляцию прогресса
+            progress_task.cancel()
+            try:
+                await progress_task
+            except asyncio.CancelledError:
+                pass
+            
+            _download_status["progress"] = 80
+            _download_status["message"] = "Модель скачана, инициализация..."
+            await asyncio.sleep(0.5)
+            
+        except Exception as download_error:
+            # Останавливаем симуляцию при ошибке
+            progress_task.cancel()
+            try:
+                await progress_task
+            except asyncio.CancelledError:
+                pass
+            
+            await hybrid_logger.error(f"Ошибка snapshot_download: {download_error}")
+            raise RuntimeError(f"Не удалось скачать модель с HuggingFace: {download_error}")
         
         _download_status["progress"] = 85
-        _download_status["message"] = "Модель скачана, проверка работоспособности..."
+        _download_status["message"] = "Проверка работоспособности модели..."
         await asyncio.sleep(0.5)
         
-        # Проверяем что модель работает
-        test_embedding = model.encode(["тест"])
+        # Проверяем что модель работает через SentenceTransformer
+        from sentence_transformers import SentenceTransformer
+        
+        model = await asyncio.to_thread(
+            SentenceTransformer,
+            settings.embedding_model,
+            cache_folder=str(cache_dir.parent)
+        )
+        
+        _download_status["progress"] = 92
+        _download_status["message"] = "Тестирование эмбеддингов..."
+        await asyncio.sleep(0.5)
+        
+        # Тестовая генерация эмбеддинга
+        test_embedding = await asyncio.to_thread(
+            model.encode,
+            ["тест"]
+        )
         
         if test_embedding is None or len(test_embedding) == 0:
             raise ValueError("Модель не возвращает эмбеддинги")
         
-        _download_status["progress"] = 95
+        _download_status["progress"] = 98
         _download_status["message"] = "Финализация..."
         await asyncio.sleep(0.5)
         
@@ -115,7 +190,10 @@ async def _download_model_task():
         _download_status["message"] = "✅ Модель успешно загружена и готова к использованию!"
         _download_status["is_downloading"] = False
         
-        await hybrid_logger.info(f"Модель {settings.embedding_model} успешно загружена")
+        await hybrid_logger.info(
+            f"Модель {settings.embedding_model} успешно загружена. "
+            f"Путь: {local_dir if 'local_dir' in locals() else 'cache'}"
+        )
         
     except Exception as e:
         _download_status["is_downloading"] = False
@@ -123,7 +201,10 @@ async def _download_model_task():
         _download_status["error"] = str(e)
         _download_status["message"] = f"❌ Ошибка загрузки: {str(e)}"
         
-        await hybrid_logger.error(f"Ошибка загрузки модели {settings.embedding_model}: {e}")
+        await hybrid_logger.error(
+            f"Ошибка загрузки модели {settings.embedding_model}: {e}",
+            exc_info=True
+        )
 
 
 @model_router.get("/", response_class=HTMLResponse)
@@ -209,9 +290,11 @@ async def cancel_download(
     current_user: AdminUser = Depends(require_admin_only)
 ):
     """
-    Отменить текущую загрузку модели.
-    Примечание: Физически остановить загрузку невозможно,
-    но мы сбросим статус для возможности повторной попытки.
+    Сбросить статус загрузки модели.
+    
+    Важно: Фоновая загрузка через snapshot_download продолжит работу,
+    но UI статус будет сброшен для возможности повторной попытки.
+    Благодаря resume_download=True повторная попытка продолжит с места остановки.
     """
     global _download_status
     
@@ -223,14 +306,17 @@ async def cancel_download(
     
     _download_status["is_downloading"] = False
     _download_status["progress"] = 0
-    _download_status["message"] = "Загрузка отменена пользователем"
-    _download_status["error"] = "Отменено"
+    _download_status["message"] = "Статус сброшен пользователем (фоновая загрузка продолжается)"
+    _download_status["error"] = None
     
-    await hybrid_logger.warning(f"Пользователь {current_user.username} отменил загрузку модели")
+    await hybrid_logger.warning(
+        f"Пользователь {current_user.username} сбросил статус загрузки модели. "
+        f"Фоновая загрузка продолжится."
+    )
     
     return JSONResponse({
         "success": True,
-        "message": "Загрузка отменена"
+        "message": "Статус сброшен"
     })
 
 

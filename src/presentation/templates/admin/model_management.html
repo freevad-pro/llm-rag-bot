@@ -82,27 +82,39 @@
                             </div>
                             
                             <!-- Кнопки действий -->
-                            <div class="btn-group" role="group" id="actionButtons">
-                                {% if model_exists %}
-                                    <button class="btn btn-warning" onclick="confirmDelete()" id="deleteBtn">
-                                        <i class="bi bi-trash"></i>
-                                        Удалить модель
-                                    </button>
-                                    <button class="btn btn-primary" onclick="downloadModel()" id="redownloadBtn">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                        Переза грузить
-                                    </button>
-                                {% else %}
-                                    <button class="btn btn-success" onclick="downloadModel()" id="downloadBtn">
-                                        <i class="bi bi-download"></i>
-                                        Скачать модель
-                                    </button>
-                                {% endif %}
+                            <div id="actionButtons">
+                                <!-- Кнопки в нормальном состоянии -->
+                                <div id="normalButtons" {% if is_downloading %}style="display: none;"{% endif %}>
+                                    {% if model_exists %}
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-warning" onclick="confirmDelete()" id="deleteBtn">
+                                                <i class="bi bi-trash"></i>
+                                                Удалить модель
+                                            </button>
+                                            <button class="btn btn-primary" onclick="downloadModel()" id="redownloadBtn">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                                Перезагрузить
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <button class="btn btn-success" onclick="downloadModel()" id="downloadBtn">
+                                            <i class="bi bi-download"></i>
+                                            Скачать модель
+                                        </button>
+                                    {% endif %}
+                                </div>
                                 
-                                <button class="btn btn-danger" onclick="cancelDownload()" id="cancelBtn" style="display: none;">
-                                    <i class="bi bi-x-circle"></i>
-                                    Отменить
-                                </button>
+                                <!-- Кнопка во время загрузки -->
+                                <div id="cancelButtonContainer" {% if not is_downloading %}style="display: none;"{% endif %}>
+                                    <button class="btn btn-danger" onclick="cancelDownload()" id="cancelBtn">
+                                        <i class="bi bi-x-circle"></i>
+                                        Сбросить статус
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle"></i>
+                                        Загрузка в фоне продолжится. Можно попробовать снова - прогресс сохранится.
+                                    </small>
+                                </div>
                             </div>
                             
                             <!-- Предупреждение если модель не загружена -->
@@ -285,11 +297,11 @@ function updateUI(data) {
         progressPercent.textContent = `${data.download_progress}%`;
         progressMessage.textContent = data.download_message;
         
-        // Показываем кнопку отмены
-        document.getElementById('cancelBtn').style.display = 'inline-block';
-        document.getElementById('actionButtons').querySelectorAll('button:not(#cancelBtn)').forEach(btn => {
-            btn.disabled = true;
-        });
+        // Скрываем обычные кнопки, показываем кнопку отмены
+        const normalButtons = document.getElementById('normalButtons');
+        const cancelContainer = document.getElementById('cancelButtonContainer');
+        if (normalButtons) normalButtons.style.display = 'none';
+        if (cancelContainer) cancelContainer.style.display = 'block';
         
         if (!statusUpdateInterval) {
             startStatusUpdates();
@@ -322,11 +334,11 @@ function updateUI(data) {
             progressContainer.style.display = 'none';
         }
         
-        // Скрываем кнопку отмены
-        document.getElementById('cancelBtn').style.display = 'none';
-        document.getElementById('actionButtons').querySelectorAll('button:not(#cancelBtn)').forEach(btn => {
-            btn.disabled = false;
-        });
+        // Показываем обычные кнопки, скрываем кнопку отмены
+        const normalButtons = document.getElementById('normalButtons');
+        const cancelContainer = document.getElementById('cancelButtonContainer');
+        if (normalButtons) normalButtons.style.display = 'block';
+        if (cancelContainer) cancelContainer.style.display = 'none';
         
         stopStatusUpdates();
     }
@@ -368,16 +380,16 @@ async function cancelDownload() {
         const data = await response.json();
         
         if (data.success) {
-            showToast('warning', 'Отменено', data.message);
+            showToast('info', 'Статус сброшен', 'Загрузка в фоне продолжается. При повторном запуске докачает с места остановки.');
             stopStatusUpdates();
-            setTimeout(() => location.reload(), 1500);
+            setTimeout(() => location.reload(), 2000);
         } else {
             showToast('danger', 'Ошибка', data.message);
         }
         
     } catch (error) {
         console.error('Ошибка отмены:', error);
-        showToast('danger', 'Ошибка', 'Не удалось отменить загрузку');
+        showToast('danger', 'Ошибка', 'Не удалось сбросить статус');
     }
 }
 
