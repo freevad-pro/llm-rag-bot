@@ -50,7 +50,10 @@ def check_model_exists() -> bool:
 
 
 def get_model_size() -> Optional[int]:
-    """Получить размер модели в байтах."""
+    """
+    Получить размер модели в байтах.
+    HuggingFace Hub использует blobs с симлинками, поэтому считаем только реальные файлы.
+    """
     cache_dir = get_model_cache_path()
     model_name = settings.embedding_model.replace("/", "--")
     model_dir = cache_dir / f"models--{model_name}"
@@ -58,8 +61,19 @@ def get_model_size() -> Optional[int]:
     if not model_dir.exists():
         return None
     
+    # Считаем только файлы в blobs/ (реальные файлы без дубликатов)
+    blobs_dir = model_dir / "blobs"
+    if not blobs_dir.exists():
+        # Если структуры нет, считаем всё рекурсивно
+        total_size = 0
+        for file in model_dir.rglob("*"):
+            if file.is_file() and not file.is_symlink():
+                total_size += file.stat().st_size
+        return total_size
+    
+    # В blobs/ лежат реальные файлы, snapshots/ содержит симлинки на них
     total_size = 0
-    for file in model_dir.rglob("*"):
+    for file in blobs_dir.iterdir():
         if file.is_file():
             total_size += file.stat().st_size
     
