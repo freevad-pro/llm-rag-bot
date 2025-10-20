@@ -369,8 +369,11 @@ function updateStatusDisplay(data) {
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
     if (progressBar && progressText) {
-        progressBar.style.width = `${data.progress}%`;
-        progressText.textContent = `${data.progress}%`;
+        const p = Number(data.progress);
+        if (Number.isFinite(p) && p >= 0 && p <= 100) {
+            progressBar.style.width = `${p}%`;
+            progressText.textContent = `${p}%`;
+        }
     }
     
     // Обновляем количество товаров

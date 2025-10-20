@@ -9,7 +9,7 @@ from typing import List, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config.database import get_session
+from src.infrastructure.database.connection import async_session_factory
 from src.application.telegram.services.lead_service import LeadService
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
 from src.infrastructure.notifications.telegram_notifier import TelegramNotifier
@@ -89,7 +89,7 @@ class InactiveUsersMonitor:
     async def _check_inactive_users(self) -> None:
         """Проверка неактивных пользователей"""
         try:
-            async with get_session() as session:
+            async with async_session_factory() as session:
                 inactive_users = await self.lead_service.find_inactive_users(
                     session, 
                     self.inactivity_threshold

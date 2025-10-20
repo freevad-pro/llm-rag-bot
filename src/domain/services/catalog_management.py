@@ -177,7 +177,7 @@ class CatalogManagementService:
                 
                 # Шаг 3: Атомарное переключение коллекций
                 await self._update_version_progress(version.id, 90, "Переключение активной коллекции...")
-                await self._switch_active_collection(temp_collection_name)
+                await self._switch_active_collection(temp_collection_name, version_id=version.id)
                 
                 # Шаг 4: Обновляем статистику в БД
                 await self._update_version_completion(
@@ -277,7 +277,7 @@ class CatalogManagementService:
             # Небольшая пауза для снижения нагрузки
             await asyncio.sleep(0.1)
     
-    async def _switch_active_collection(self, new_collection_name: str) -> None:
+    async def _switch_active_collection(self, new_collection_name: str, version_id: Optional[int] = None) -> None:
         """
         Атомарно переключает активную коллекцию.
         
@@ -288,6 +288,15 @@ class CatalogManagementService:
         old_collection_name = self.catalog_service.COLLECTION_NAME
         
         try:
+            async def _report_switch_progress(percent: float, copied: int, total: int) -> None:
+                """Обновляет прогресс 90–100% во время переключения коллекции."""
+                if version_id is None:
+                    return
+                # Переводим прогресс копирования (0..100) в 90..100
+                bounded = max(0.0, min(100.0, percent))
+                progress_value = 90 + int(bounded * 0.10)
+                message = f"Переключение коллекции: скопировано {copied} из {total} документов"
+                await self._update_version_progress(version_id, progress_value, message)
             # Проверяем, существует ли старая коллекция
             old_exists = await self.catalog_service.collection_exists(old_collection_name)
             
@@ -296,16 +305,28 @@ class CatalogManagementService:
                 backup_collection_name = f"{old_collection_name}_backup_{int(datetime.utcnow().timestamp())}"
                 
                 # 1. Переименовываем старую коллекцию в backup
-                await self.catalog_service.rename_collection(old_collection_name, backup_collection_name)
+                await self.catalog_service.rename_collection(
+                    old_collection_name,
+                    backup_collection_name,
+                    progress_callback=_report_switch_progress
+                )
                 
                 # 2. Переименовываем новую коллекцию в активную
-                await self.catalog_service.rename_collection(new_collection_name, old_collection_name)
+                await self.catalog_service.rename_collection(
+                    new_collection_name,
+                    old_collection_name,
+                    progress_callback=_report_switch_progress
+                )
                 
                 # 3. Удаляем backup коллекцию
                 await self.catalog_service.delete_collection(backup_collection_name)
             else:
                 # Если старой коллекции нет, просто переименовываем новую в активную
-                await self.catalog_service.rename_collection(new_collection_name, old_collection_name)
+                await self.catalog_service.rename_collection(
+                    new_collection_name,
+                    old_collection_name,
+                    progress_callback=_report_switch_progress
+                )
             
         except Exception as e:
             self.logger.error(f"Ошибка переключения коллекции: {e}")

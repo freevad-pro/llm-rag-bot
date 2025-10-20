@@ -68,8 +68,8 @@ class HybridLogger:
     ) -> None:
         """Сохранение в PostgreSQL"""
         try:
-            from ..database.connection import get_session
-            async with get_session() as session:
+            from ..database.connection import async_session_factory
+            async with async_session_factory() as session:
                 log_entry = SystemLog(
                     level=level,
                     message=message,

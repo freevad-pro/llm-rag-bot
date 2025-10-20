@@ -556,7 +556,7 @@ class CatalogSearchService(BaseSearchService):
             
             self._logger.debug(f"Проиндексирована порция {i + 1}-{i + len(batch)} из {len(products)}")
     
-    async def _copy_collection_data(self, source_collection, target_collection) -> None:
+    async def _copy_collection_data(self, source_collection, target_collection, progress_callback=None) -> None:
         """
         Копирует данные из одной коллекции в другую батчами.
         
@@ -601,6 +601,13 @@ class CatalogSearchService(BaseSearchService):
                 if copied_count % 5000 == 0:
                     progress = (copied_count / total_count) * 100
                     self._logger.info(f"Скопировано {copied_count}/{total_count} документов ({progress:.1f}%)")
+                    # Сообщаем наружу о прогрессе копирования
+                    if progress_callback is not None:
+                        try:
+                            await progress_callback(progress, copied_count, total_count)
+                        except Exception as cb_err:
+                            # Не прерываем копирование при ошибке колбэка
+                            self._logger.warning(f"Ошибка колбэка прогресса копирования: {cb_err}")
                 
                 # Даем системе передохнуть между батчами
                 await asyncio.sleep(0.01)  # 10ms пауза
@@ -710,7 +717,7 @@ class CatalogSearchService(BaseSearchService):
             self._logger.error(f"Ошибка проверки существования коллекции {collection_name}: {e}")
             return False
     
-    async def rename_collection(self, old_name: str, new_name: str) -> None:
+    async def rename_collection(self, old_name: str, new_name: str, progress_callback=None) -> None:
         """
         Переименовывает коллекцию (через копирование данных батчами).
         
@@ -743,7 +750,7 @@ class CatalogSearchService(BaseSearchService):
             )
             
             # Копируем данные батчами (это предотвращает зависание)
-            await self._copy_collection_data(old_collection, new_collection)
+            await self._copy_collection_data(old_collection, new_collection, progress_callback)
             
             # Проверяем что копирование прошло успешно
             new_count = new_collection.count()
