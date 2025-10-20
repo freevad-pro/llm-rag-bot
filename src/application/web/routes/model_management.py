@@ -128,7 +128,7 @@ async def _download_model_task():
             local_dir = await asyncio.to_thread(
                 snapshot_download,
                 repo_id=settings.embedding_model,
-                cache_dir=str(cache_dir.parent),  # HF Hub сам создаст нужную структуру
+                cache_dir=str(cache_dir),  # Указываем напрямую /root/.cache/huggingface
                 resume_download=True,  # Докачка при обрыве
                 max_workers=4,  # Параллельная загрузка файлов
                 local_files_only=False
@@ -166,7 +166,7 @@ async def _download_model_task():
         model = await asyncio.to_thread(
             SentenceTransformer,
             settings.embedding_model,
-            cache_folder=str(cache_dir.parent)
+            cache_folder=str(cache_dir)
         )
         
         _download_status["progress"] = 92
