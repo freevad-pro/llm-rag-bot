@@ -264,7 +264,12 @@ function refreshStats() {
 }
 
 function showModal(title, message, type) {
-    const modal = new bootstrap.Modal(document.getElementById('resultModal'));
+    const modalEl = document.getElementById('resultModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    
     const modalTitle = document.querySelector('#resultModal .modal-title');
     const modalBody = document.getElementById('modalBody');
     

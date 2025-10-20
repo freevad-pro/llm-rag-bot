@@ -244,7 +244,12 @@ function previewVersion(infoId) {
     console.log('Bootstrap:', typeof bootstrap);
     
     try {
-        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        const modalEl = document.getElementById('previewModal');
+        let modal = bootstrap.Modal.getInstance(modalEl);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalEl);
+        }
+        
         const content = document.getElementById('previewContent');
         
         // Показываем спиннер

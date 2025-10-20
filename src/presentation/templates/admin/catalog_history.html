@@ -240,6 +240,13 @@ let currentVersionId = null;
 
 // Показать детали версии
 async function showVersionDetails(versionId) {
+    const modalEl = document.getElementById('versionDetailsModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    
     try {
         const response = await fetch(`/admin/catalog/version/${versionId}/details`);
         
@@ -277,7 +284,7 @@ async function showVersionDetails(versionId) {
             ` : ''}
         `;
         
-        new bootstrap.Modal(document.getElementById('versionDetailsModal')).show();
+        modal.show();
         
     } catch (error) {
         console.error('Ошибка загрузки деталей версии:', error);
@@ -292,7 +299,15 @@ async function showVersionDetails(versionId) {
 function confirmDelete(versionId, filename) {
     currentVersionId = versionId;
     document.getElementById('deleteFilename').textContent = filename;
-    new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+    
+    const modalEl = document.getElementById('deleteConfirmModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    
+    modal.show();
 }
 
 // Выполнение удаления

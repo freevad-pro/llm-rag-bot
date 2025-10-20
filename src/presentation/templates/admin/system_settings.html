@@ -378,7 +378,12 @@ async function testConnection(settingKey) {
         const response = await fetch(`/admin/settings/test-connection/${service}`);
         const result = await response.json();
         
-        const modal = new bootstrap.Modal(document.getElementById('testResultModal'));
+        const modalEl = document.getElementById('testResultModal');
+        let modal = bootstrap.Modal.getInstance(modalEl);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalEl);
+        }
+        
         const modalTitle = document.getElementById('modalTitle');
         const content = document.getElementById('testResultContent');
         
@@ -445,7 +450,12 @@ async function restartApplication() {
         
         if (result.success) {
             // Сразу показываем инструкции для ручного перезапуска
-            const modal = new bootstrap.Modal(document.getElementById('testResultModal'));
+            const modalEl = document.getElementById('testResultModal');
+            let modal = bootstrap.Modal.getInstance(modalEl);
+            if (!modal) {
+                modal = new bootstrap.Modal(modalEl);
+            }
+            
             const modalTitle = document.getElementById('modalTitle');
             const content = document.getElementById('testResultContent');
             
