@@ -213,6 +213,18 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Toast контейнер -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="notificationToast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="bi me-2" id="toastIcon"></i>
+            <strong class="me-auto" id="toastTitle">Уведомление</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastBody"></div>
+    </div>
+</div>
+
 <script>
 let statusUpdateInterval;
 
@@ -268,6 +280,8 @@ function updateUI(data) {
     if (data.is_downloading) {
         progressContainer.style.display = 'block';
         progressBar.style.width = `${data.download_progress}%`;
+        progressBar.classList.add('progress-bar-animated');
+        progressBar.classList.remove('bg-success', 'bg-danger');
         progressPercent.textContent = `${data.download_progress}%`;
         progressMessage.textContent = data.download_message;
         
@@ -277,24 +291,33 @@ function updateUI(data) {
             btn.disabled = true;
         });
         
-        startStatusUpdates();
+        if (!statusUpdateInterval) {
+            startStatusUpdates();
+        }
     } else {
-        if (data.download_progress === 100) {
+        if (data.download_progress === 100 && !data.download_error) {
             // Загрузка завершена успешно
             progressContainer.style.display = 'block';
             progressBar.classList.remove('progress-bar-animated');
             progressBar.classList.add('bg-success');
+            progressBar.style.width = '100%';
+            progressPercent.textContent = '100%';
+            progressMessage.textContent = data.download_message;
+            
+            showToast('success', 'Успешно!', 'Модель загружена и готова к использованию');
             
             setTimeout(() => {
-                progressContainer.style.display = 'none';
                 location.reload(); // Перезагружаем страницу для обновления статуса
-            }, 2000);
+            }, 3000);
         } else if (data.download_error) {
             // Ошибка загрузки
             progressContainer.style.display = 'block';
             progressBar.classList.remove('progress-bar-animated');
             progressBar.classList.add('bg-danger');
-            progressMessage.innerHTML = `<span class="text-danger">${data.download_error}</span>`;
+            progressBar.style.width = `${data.download_progress || 0}%`;
+            progressMessage.innerHTML = `<span class="text-danger">${data.download_message}</span>`;
+            
+            showToast('danger', 'Ошибка!', data.download_error);
         } else {
             progressContainer.style.display = 'none';
         }
@@ -310,11 +333,9 @@ function updateUI(data) {
 }
 
 async function downloadModel() {
-    if (!confirm('Начать загрузку модели? Это займёт 5-10 минут в зависимости от скорости интернета.')) {
-        return;
-    }
-    
     try {
+        showToast('info', 'Запуск загрузки', 'Начинаю скачивание модели...');
+        
         const response = await fetch('/admin/model/download', {
             method: 'POST'
         });
@@ -322,23 +343,23 @@ async function downloadModel() {
         const data = await response.json();
         
         if (data.success) {
-            showNotification('success', data.message);
+            showToast('success', 'Загрузка начата', 'Следите за прогрессом ниже. Это займёт 5-10 минут.');
+            
+            // Показываем прогресс-бар сразу
+            document.getElementById('downloadProgress').style.display = 'block';
             startStatusUpdates();
+            checkStatus(); // Немедленная проверка
         } else {
-            showNotification('danger', data.message);
+            showToast('danger', 'Ошибка', data.message);
         }
         
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        showNotification('danger', 'Ошибка запуска загрузки');
+        showToast('danger', 'Ошибка', 'Не удалось запустить загрузку');
     }
 }
 
 async function cancelDownload() {
-    if (!confirm('Отменить загрузку модели?')) {
-        return;
-    }
-    
     try {
         const response = await fetch('/admin/model/cancel', {
             method: 'POST'
@@ -347,16 +368,16 @@ async function cancelDownload() {
         const data = await response.json();
         
         if (data.success) {
-            showNotification('info', data.message);
+            showToast('warning', 'Отменено', data.message);
             stopStatusUpdates();
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 1500);
         } else {
-            showNotification('danger', data.message);
+            showToast('danger', 'Ошибка', data.message);
         }
         
     } catch (error) {
         console.error('Ошибка отмены:', error);
-        showNotification('danger', 'Ошибка отмены загрузки');
+        showToast('danger', 'Ошибка', 'Не удалось отменить загрузку');
     }
 }
 
@@ -380,37 +401,42 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async func
         bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
         
         if (data.success) {
-            showNotification('success', data.message);
-            setTimeout(() => location.reload(), 1000);
+            showToast('success', 'Удалено', data.message);
+            setTimeout(() => location.reload(), 1500);
         } else {
-            showNotification('danger', data.message);
+            showToast('danger', 'Ошибка', data.message);
         }
         
     } catch (error) {
         console.error('Ошибка удаления:', error);
-        showNotification('danger', 'Ошибка удаления модели');
+        showToast('danger', 'Ошибка', 'Не удалось удалить модель');
     }
 });
 
-function showNotification(type, message) {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
+function showToast(type, title, message) {
+    const toast = document.getElementById('notificationToast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastTitle = document.getElementById('toastTitle');
+    const toastBody = document.getElementById('toastBody');
     
-    const container = document.querySelector('.container-fluid .row .col-lg-8');
-    container.insertAdjacentHTML('afterbegin', alertHtml);
+    // Настраиваем иконку и цвета
+    const icons = {
+        'success': 'bi-check-circle-fill text-success',
+        'danger': 'bi-exclamation-triangle-fill text-danger',
+        'warning': 'bi-exclamation-circle-fill text-warning',
+        'info': 'bi-info-circle-fill text-info'
+    };
     
-    // Автоматически скрываем через 5 секунд
-    setTimeout(() => {
-        const alert = container.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, 5000);
+    toastIcon.className = `bi me-2 ${icons[type] || icons.info}`;
+    toastTitle.textContent = title;
+    toastBody.textContent = message;
+    
+    // Показываем Toast
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 5000
+    });
+    bsToast.show();
 }
 </script>
 {% endblock %}

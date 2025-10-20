@@ -53,9 +53,9 @@ async def catalog_upload_page(
     
     if settings.embedding_provider == "sentence-transformers":
         from pathlib import Path
-        cache_dir = Path.home() / ".cache" / "torch" / "sentence_transformers"
-        model_name = settings.embedding_model.replace("/", "_")
-        model_dir = cache_dir / model_name
+        cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+        model_name = settings.embedding_model.replace("/", "--")
+        model_dir = cache_dir / f"models--{model_name}"
         
         if not (model_dir.exists() and any(model_dir.iterdir())):
             model_ready = False
@@ -92,9 +92,9 @@ async def catalog_upload_post(
     # Проверка наличия модели для sentence-transformers
     if settings.embedding_provider == "sentence-transformers":
         from pathlib import Path as PathLib
-        cache_dir = PathLib.home() / ".cache" / "torch" / "sentence_transformers"
-        model_name = settings.embedding_model.replace("/", "_")
-        model_dir = cache_dir / model_name
+        cache_dir = PathLib.home() / ".cache" / "huggingface" / "hub"
+        model_name = settings.embedding_model.replace("/", "--")
+        model_dir = cache_dir / f"models--{model_name}"
         
         if not (model_dir.exists() and any(model_dir.iterdir())):
             raise HTTPException(

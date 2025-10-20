@@ -30,8 +30,8 @@ _download_status = {
 
 def get_model_cache_path() -> Path:
     """Получить путь к кэшу модели."""
-    # sentence-transformers кэширует в ~/.cache/torch/sentence_transformers/
-    cache_dir = Path.home() / ".cache" / "torch" / "sentence_transformers"
+    # sentence-transformers использует HuggingFace Hub кэш
+    cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
     return cache_dir
 
 
@@ -42,8 +42,9 @@ def check_model_exists() -> bool:
         return False
     
     # Проверяем наличие директории с моделью
-    model_name = settings.embedding_model.replace("/", "_")
-    model_dir = cache_dir / model_name
+    # HuggingFace Hub использует формат: models--org--model
+    model_name = settings.embedding_model.replace("/", "--")
+    model_dir = cache_dir / f"models--{model_name}"
     
     return model_dir.exists() and any(model_dir.iterdir())
 
@@ -51,8 +52,8 @@ def check_model_exists() -> bool:
 def get_model_size() -> Optional[int]:
     """Получить размер модели в байтах."""
     cache_dir = get_model_cache_path()
-    model_name = settings.embedding_model.replace("/", "_")
-    model_dir = cache_dir / model_name
+    model_name = settings.embedding_model.replace("/", "--")
+    model_dir = cache_dir / f"models--{model_name}"
     
     if not model_dir.exists():
         return None
@@ -71,23 +72,34 @@ async def _download_model_task():
     
     try:
         _download_status["is_downloading"] = True
-        _download_status["progress"] = 0
+        _download_status["progress"] = 5
         _download_status["message"] = "Начинаю загрузку модели..."
         _download_status["error"] = None
         
         await hybrid_logger.info(f"Начало загрузки модели {settings.embedding_model}")
+        await asyncio.sleep(0.5)  # Даём UI обновиться
+        
+        _download_status["progress"] = 10
+        _download_status["message"] = "Подключение к HuggingFace Hub..."
+        await asyncio.sleep(0.5)
         
         # Импортируем в фоновой задаче чтобы не блокировать основной поток
         from sentence_transformers import SentenceTransformer
         
-        _download_status["progress"] = 10
-        _download_status["message"] = "Подключение к HuggingFace..."
+        _download_status["progress"] = 20
+        _download_status["message"] = "Загрузка файлов модели (~350 MB)..."
+        await asyncio.sleep(0.5)
         
         # Загружаем модель - это автоматически скачает и закэширует её
+        # Процесс загрузки занимает 20-80% прогресса
+        _download_status["progress"] = 30
+        _download_status["message"] = "Скачивание модели... Это может занять 5-10 минут"
+        
         model = SentenceTransformer(settings.embedding_model)
         
-        _download_status["progress"] = 90
-        _download_status["message"] = "Проверка модели..."
+        _download_status["progress"] = 85
+        _download_status["message"] = "Модель скачана, проверка работоспособности..."
+        await asyncio.sleep(0.5)
         
         # Проверяем что модель работает
         test_embedding = model.encode(["тест"])
@@ -95,8 +107,12 @@ async def _download_model_task():
         if test_embedding is None or len(test_embedding) == 0:
             raise ValueError("Модель не возвращает эмбеддинги")
         
+        _download_status["progress"] = 95
+        _download_status["message"] = "Финализация..."
+        await asyncio.sleep(0.5)
+        
         _download_status["progress"] = 100
-        _download_status["message"] = "Модель успешно загружена и готова к использованию!"
+        _download_status["message"] = "✅ Модель успешно загружена и готова к использованию!"
         _download_status["is_downloading"] = False
         
         await hybrid_logger.info(f"Модель {settings.embedding_model} успешно загружена")
@@ -105,7 +121,7 @@ async def _download_model_task():
         _download_status["is_downloading"] = False
         _download_status["progress"] = 0
         _download_status["error"] = str(e)
-        _download_status["message"] = f"Ошибка загрузки: {str(e)}"
+        _download_status["message"] = f"❌ Ошибка загрузки: {str(e)}"
         
         await hybrid_logger.error(f"Ошибка загрузки модели {settings.embedding_model}: {e}")
 

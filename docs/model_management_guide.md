@@ -113,8 +113,10 @@
 
 Модель кэшируется в контейнере по пути:
 ```
-/root/.cache/torch/sentence_transformers/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2/
+/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/
 ```
+
+**Примечание:** Используется стандартный кэш HuggingFace Hub (не torch/sentence_transformers).
 
 ### Проверка через командную строку
 
@@ -129,17 +131,17 @@ bash scripts/check_model.sh
 ```bash
 # Проверка директории
 docker compose -f docker-compose.prod.yml exec app \
-  ls -lh /root/.cache/torch/sentence_transformers/
+  ls -lh /root/.cache/huggingface/hub/
 
-# Проверка размера
+# Проверка размера модели
 docker compose -f docker-compose.prod.yml exec app \
-  du -sh /root/.cache/torch/sentence_transformers/*
+  du -sh /root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2
 
 # Проверка через Python API
 docker compose -f docker-compose.prod.yml exec app python -c "
 from pathlib import Path
-cache_dir = Path.home() / '.cache' / 'torch' / 'sentence_transformers'
-model_name = 'sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2'
+cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+model_name = 'models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2'
 model_dir = cache_dir / model_name
 
 if model_dir.exists() and any(model_dir.iterdir()):
