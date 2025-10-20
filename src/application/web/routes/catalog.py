@@ -47,12 +47,28 @@ async def catalog_upload_page(
     Страница загрузки нового каталога Excel.
     Доступна менеджерам и администраторам.
     """
+    # Проверяем наличие модели только для sentence-transformers
+    model_ready = True
+    model_warning = None
+    
+    if settings.embedding_provider == "sentence-transformers":
+        from pathlib import Path
+        cache_dir = Path.home() / ".cache" / "torch" / "sentence_transformers"
+        model_name = settings.embedding_model.replace("/", "_")
+        model_dir = cache_dir / model_name
+        
+        if not (model_dir.exists() and any(model_dir.iterdir())):
+            model_ready = False
+            model_warning = "Модель эмбеддингов не загружена. Перейдите в раздел 'Модель эмбеддингов' для её загрузки."
+    
     context = {
         "request": request,
         "current_user": current_user,
         "page_title": "Загрузка каталога",
         "max_file_size_mb": settings.max_upload_size_mb,
-        "supported_formats": ["xlsx", "xls"]
+        "supported_formats": ["xlsx", "xls"],
+        "model_ready": model_ready,
+        "model_warning": model_warning
     }
     
     return templates.TemplateResponse("admin/catalog_upload.html", context)
@@ -72,6 +88,19 @@ async def catalog_upload_post(
     Обработка загрузки Excel файла каталога.
     Поддерживает немедленную и отложенную переиндексацию.
     """
+    
+    # Проверка наличия модели для sentence-transformers
+    if settings.embedding_provider == "sentence-transformers":
+        from pathlib import Path as PathLib
+        cache_dir = PathLib.home() / ".cache" / "torch" / "sentence_transformers"
+        model_name = settings.embedding_model.replace("/", "_")
+        model_dir = cache_dir / model_name
+        
+        if not (model_dir.exists() and any(model_dir.iterdir())):
+            raise HTTPException(
+                status_code=400,
+                detail="Модель эмбеддингов не загружена. Перейдите в раздел 'Модель эмбеддингов' для её загрузки."
+            )
     
     # Валидация файла
     if not file.filename:

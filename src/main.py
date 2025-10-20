@@ -31,6 +31,7 @@ from src.application.web.routes.categories import categories_router
 from src.application.web.routes.logs import logs_router
 from src.application.web.routes.users import router as users_router
 from src.application.web.routes.catalog import catalog_router
+from src.application.web.routes.model_management import model_router
 from src.application.web.routes.company_info import router as company_info_router
 from src.application.web.routes.database import router as database_router
 from src.application.web.routes.system_settings import router as system_settings_router
@@ -203,6 +204,7 @@ app.include_router(categories_router)
 app.include_router(logs_router)
 app.include_router(users_router)
 app.include_router(catalog_router)
+app.include_router(model_router)
 app.include_router(company_info_router)
 app.include_router(database_router)
 app.include_router(system_settings_router)

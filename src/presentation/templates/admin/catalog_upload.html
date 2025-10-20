@@ -32,6 +32,16 @@
                 <div class="col-12">
                     
                     <!-- Уведомления -->
+                    {% if model_warning %}
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Модель не готова!</strong> {{ model_warning }}
+                        {% if current_user.is_admin() %}
+                        <br><a href="/admin/model/" class="alert-link">Перейти к загрузке модели →</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
                     {% if success %}
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="bi bi-check-circle"></i>
@@ -135,7 +145,7 @@
                                                 Назад к панели
                                             </a>
                                             
-                                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                            <button type="submit" class="btn btn-primary" id="submitBtn" {% if not model_ready %}disabled{% endif %}>
                                                 <i class="bi bi-upload"></i>
                                                 Загрузить каталог
                                             </button>

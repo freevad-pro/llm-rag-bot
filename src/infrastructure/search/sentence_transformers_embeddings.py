@@ -46,11 +46,16 @@ class SentenceTransformersEmbeddingFunction(EmbeddingFunction):
         self._initialize_model()
     
     def _initialize_model(self):
-        """Инициализация модели Sentence-Transformers."""
+        """Инициализация модели Sentence-Transformers с обработкой сетевых ошибок."""
         try:
             from sentence_transformers import SentenceTransformer
             
             self._logger.info(f"Загрузка модели Sentence-Transformers: {self.model_name}")
+            
+            # Устанавливаем более короткий таймаут для избежания долгих зависаний
+            import os
+            os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '30'  # 30 секунд вместо дефолтных 10 минут
+            
             self._model = SentenceTransformer(self.model_name)
             self._logger.info("Модель Sentence-Transformers загружена успешно")
             
@@ -58,7 +63,17 @@ class SentenceTransformersEmbeddingFunction(EmbeddingFunction):
             self._logger.error("sentence-transformers не установлен. Установите: pip install sentence-transformers")
             raise ImportError("sentence-transformers required for local embeddings") from e
         except Exception as e:
-            self._logger.error(f"Ошибка загрузки модели {self.model_name}: {e}")
+            error_msg = f"Ошибка загрузки модели {self.model_name}: {e}"
+            self._logger.error(error_msg)
+            
+            # Проверяем, не сетевая ли это ошибка
+            error_str = str(e).lower()
+            if any(keyword in error_str for keyword in ['timeout', 'connection', 'network', 'huggingface']):
+                raise RuntimeError(
+                    f"Не удалось загрузить модель {self.model_name} из-за проблем с сетью. "
+                    f"Убедитесь что модель предзагружена в Docker образ или доступен HuggingFace. "
+                    f"Оригинальная ошибка: {e}"
+                ) from e
             raise
     
     def __call__(self, input: Documents) -> List[List[float]]:

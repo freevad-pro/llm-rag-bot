@@ -311,9 +311,14 @@
 <script>
 // Автообновление статуса каждые 5 секунд для активной переиндексации
 let statusUpdateInterval;
+let lastProgress = -1;
+let stuckCount = 0;
+const MAX_STUCK_COUNT = 12; // 12 * 5 секунд = 1 минута без изменений
 
 function startStatusUpdates() {
     statusUpdateInterval = setInterval(refreshStatus, 5000);
+    lastProgress = -1;
+    stuckCount = 0;
 }
 
 function stopStatusUpdates() {
@@ -329,6 +334,33 @@ async function refreshStatus() {
         const data = await response.json();
         
         updateStatusDisplay(data);
+        
+        // Проверка на зависание: если прогресс не меняется долго
+        if (data.status === 'processing') {
+            if (data.progress === lastProgress) {
+                stuckCount++;
+                if (stuckCount >= MAX_STUCK_COUNT) {
+                    // Процесс завис - показываем предупреждение
+                    const statusContainer = document.getElementById('statusContainer');
+                    if (statusContainer) {
+                        statusContainer.innerHTML += `
+                            <div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Процесс возможно завис!</strong>
+                                Прогресс не изменяется более 1 минуты. 
+                                Попробуйте обновить страницу или проверьте логи сервера.
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        `;
+                    }
+                    stopStatusUpdates();
+                    return;
+                }
+            } else {
+                lastProgress = data.progress;
+                stuckCount = 0;
+            }
+        }
         
         // Останавливаем обновления если процесс завершен
         if (data.status !== 'processing') {
