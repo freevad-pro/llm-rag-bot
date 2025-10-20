@@ -241,8 +241,12 @@ let currentVersionId = null;
 // Показать детали версии
 async function showVersionDetails(versionId) {
     try {
-        // TODO: Реализовать API endpoint для получения деталей версии
         const response = await fetch(`/admin/catalog/version/${versionId}/details`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
         
         document.getElementById('versionDetailsContent').innerHTML = `
@@ -250,18 +254,18 @@ async function showVersionDetails(versionId) {
                 <div class="col-md-6">
                     <h6>Основная информация</h6>
                     <table class="table table-sm">
-                        <tr><td><strong>Файл:</strong></td><td>${data.filename}</td></tr>
-                        <tr><td><strong>Размер:</strong></td><td>${data.file_size_mb} MB</td></tr>
-                        <tr><td><strong>Статус:</strong></td><td>${data.status}</td></tr>
+                        <tr><td><strong>Файл:</strong></td><td>${data.filename || 'undefined'}</td></tr>
+                        <tr><td><strong>Размер:</strong></td><td>${data.file_size_mb ? data.file_size_mb + ' MB' : 'undefined MB'}</td></tr>
+                        <tr><td><strong>Статус:</strong></td><td>${data.status || 'undefined'}</td></tr>
                         <tr><td><strong>Товаров:</strong></td><td>${data.products_count || 'Неизвестно'}</td></tr>
                     </table>
                 </div>
                 <div class="col-md-6">
                     <h6>Временные метки</h6>
                     <table class="table table-sm">
-                        <tr><td><strong>Загружен:</strong></td><td>${data.created_at}</td></tr>
-                        <tr><td><strong>Обработан:</strong></td><td>${data.processed_at || 'Не обработан'}</td></tr>
-                        <tr><td><strong>Активирован:</strong></td><td>${data.activated_at || 'Не активирован'}</td></tr>
+                        <tr><td><strong>Загружен:</strong></td><td>${data.created_at || 'undefined'}</td></tr>
+                        <tr><td><strong>Обработан:</strong></td><td>${data.completed_at || 'Не обработан'}</td></tr>
+                        <tr><td><strong>Активирован:</strong></td><td>${data.started_at ? 'Да' : 'Не активирован'}</td></tr>
                     </table>
                 </div>
             </div>
@@ -277,7 +281,7 @@ async function showVersionDetails(versionId) {
         
     } catch (error) {
         console.error('Ошибка загрузки деталей версии:', error);
-        alert('Ошибка загрузки деталей версии');
+        alert('Ошибка загрузки деталей версии: ' + error.message);
     }
 }
 

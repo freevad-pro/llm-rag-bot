@@ -250,6 +250,48 @@ async def catalog_history_page(
     return templates.TemplateResponse("admin/catalog_history.html", context)
 
 
+@catalog_router.get("/version/{version_id}/details")
+async def get_catalog_version_details(
+    version_id: int,
+    current_user: AdminUser = Depends(require_manager_or_admin),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    API endpoint для получения деталей версии каталога.
+    Используется в модальном окне на странице истории.
+    """
+    catalog_service = CatalogManagementService(session)
+    
+    try:
+        version = await catalog_service.get_version_by_id(version_id)
+        
+        if not version:
+            return JSONResponse(
+                {"error": "Версия не найдена"},
+                status_code=404
+            )
+        
+        return JSONResponse({
+            "id": version["id"],
+            "filename": version["filename"],
+            "file_size_mb": version["file_size_mb"],
+            "status": version["status"],
+            "products_count": version["products_count"],
+            "created_at": format_moscow_datetime(version["created_at"]),
+            "started_at": format_moscow_datetime(version["started_at"]),
+            "completed_at": format_moscow_datetime(version["completed_at"]),
+            "progress": version["progress"],
+            "error_message": version["error_message"]
+        })
+        
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка получения деталей версии {version_id}: {e}")
+        return JSONResponse(
+            {"error": f"Ошибка получения деталей: {str(e)}"},
+            status_code=500
+        )
+
+
 @catalog_router.post("/version/{version_id}/activate", response_class=HTMLResponse)
 async def activate_catalog_version(
     version_id: int,
