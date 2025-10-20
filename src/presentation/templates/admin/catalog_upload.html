@@ -36,7 +36,7 @@
                     <div class="alert alert-danger" role="alert">
                         <i class="bi bi-exclamation-triangle"></i>
                         <strong>Модель не готова!</strong> {{ model_warning }}
-                        {% if current_user.is_admin() %}
+                        {% if current_user.is_admin %}
                         <br><a href="/admin/model/" class="alert-link">Перейти к загрузке модели →</a>
                         {% endif %}
                     </div>
