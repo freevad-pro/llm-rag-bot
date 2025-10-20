@@ -699,6 +699,28 @@ class CatalogSearchService(BaseSearchService):
             self._logger.error(f"Ошибка индексации батча в коллекцию {collection_name}: {e}")
             raise e
     
+    async def get_collection(self, collection_name: str):
+        """
+        Получает коллекцию по имени.
+        
+        Args:
+            collection_name: Имя коллекции
+            
+        Returns:
+            Collection object или None если не существует
+        """
+        try:
+            if not await self.collection_exists(collection_name):
+                return None
+            
+            return self._client.get_collection(
+                name=collection_name,
+                embedding_function=self._embedding_function
+            )
+        except Exception as e:
+            self._logger.error(f"Ошибка получения коллекции {collection_name}: {e}")
+            return None
+    
     async def collection_exists(self, collection_name: str) -> bool:
         """
         Проверяет существование коллекции.

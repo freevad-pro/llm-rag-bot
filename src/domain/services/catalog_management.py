@@ -179,15 +179,50 @@ class CatalogManagementService:
                 await self._update_version_progress(version.id, 90, "Переключение активной коллекции...")
                 await self._switch_active_collection(temp_collection_name, version_id=version.id)
                 
-                # Шаг 4: Обновляем статистику в БД
-                await self._update_version_completion(
-                    version.id,
-                    products_count=len(products),
-                    completed_at=datetime.utcnow()
-                )
+                # Проверяем что переключение действительно завершилось успешно
+                final_collection = await self.catalog_service.get_collection(self.catalog_service.COLLECTION_NAME)
+                if final_collection is None:
+                    raise ValueError("Активная коллекция не найдена после переключения")
                 
-                # Шаг 5: Деактивируем предыдущие версии
-                await self._deactivate_previous_versions(version.id)
+                final_count = final_collection.count()
+                expected_count = len(products)
+                
+                if final_count != expected_count:
+                    raise ValueError(
+                        f"Несоответствие количества товаров после переключения: "
+                        f"ожидалось {expected_count}, получено {final_count}"
+                    )
+                
+                self.logger.info(f"Переключение коллекции успешно завершено: {final_count} товаров")
+                
+                # Шаг 4: Обновляем статистику в БД (с повторными попытками при ошибке)
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        await self._update_version_completion(
+                            version.id,
+                            products_count=len(products),
+                            completed_at=datetime.utcnow()
+                        )
+                        
+                        # Шаг 5: Деактивируем предыдущие версии
+                        await self._deactivate_previous_versions(version.id)
+                        break  # Успешно обновили
+                        
+                    except Exception as db_error:
+                        if attempt < max_retries - 1:
+                            self.logger.warning(f"Ошибка обновления БД (попытка {attempt+1}/{max_retries}): {db_error}")
+                            await asyncio.sleep(2)  # Пауза перед повторной попыткой
+                        else:
+                            # Последняя попытка не удалась - критическая ошибка
+                            self.logger.error(
+                                f"КРИТИЧЕСКАЯ ОШИБКА: Переключение коллекции завершено, "
+                                f"но не удалось обновить статус в БД после {max_retries} попыток: {db_error}"
+                            )
+                            raise ValueError(
+                                f"Коллекция переключена успешно ({final_count} товаров), "
+                                f"но не удалось обновить статус в БД: {db_error}"
+                            )
                 
                 self.logger.info(f"Переиндексация завершена успешно: {len(products)} товаров")
                 
