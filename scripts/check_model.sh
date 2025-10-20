@@ -4,8 +4,8 @@
 echo "=== Проверка модели эмбеддингов ==="
 
 # Проверяем директорию с кэшем HuggingFace
-echo -e "\n1. Проверка директории кэша HuggingFace Hub:"
-docker compose -f docker-compose.prod.yml exec app ls -lh /root/.cache/huggingface/hub/ 2>/dev/null
+echo -e "\n1. Проверка директории кэша HuggingFace:"
+docker compose -f docker-compose.prod.yml exec app ls -lh /root/.cache/huggingface/ 2>/dev/null
 
 if [ $? -ne 0 ]; then
     echo "   ❌ Директория не существует или пуста"
@@ -14,14 +14,14 @@ else
     
     # Показываем размер модели
     echo -e "\n2. Размер модели:"
-    docker compose -f docker-compose.prod.yml exec app du -sh /root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2 2>/dev/null
+    docker compose -f docker-compose.prod.yml exec app du -sh /root/.cache/huggingface/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2 2>/dev/null
 fi
 
 # Проверяем через Python
 echo -e "\n3. Проверка через Python API:"
 docker compose -f docker-compose.prod.yml exec app python -c "
 from pathlib import Path
-cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+cache_dir = Path.home() / '.cache' / 'huggingface'
 model_name = 'models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2'
 model_dir = cache_dir / model_name
 

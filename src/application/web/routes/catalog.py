@@ -53,7 +53,7 @@ async def catalog_upload_page(
     
     if settings.embedding_provider == "sentence-transformers":
         from pathlib import Path
-        cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+        cache_dir = Path.home() / ".cache" / "huggingface"
         model_name = settings.embedding_model.replace("/", "--")
         model_dir = cache_dir / f"models--{model_name}"
         
@@ -92,7 +92,7 @@ async def catalog_upload_post(
     # Проверка наличия модели для sentence-transformers
     if settings.embedding_provider == "sentence-transformers":
         from pathlib import Path as PathLib
-        cache_dir = PathLib.home() / ".cache" / "huggingface" / "hub"
+        cache_dir = PathLib.home() / ".cache" / "huggingface"
         model_name = settings.embedding_model.replace("/", "--")
         model_dir = cache_dir / f"models--{model_name}"
         

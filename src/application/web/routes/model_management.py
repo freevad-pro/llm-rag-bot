@@ -30,8 +30,8 @@ _download_status = {
 
 def get_model_cache_path() -> Path:
     """Получить путь к кэшу модели."""
-    # sentence-transformers использует HuggingFace Hub кэш
-    cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+    # sentence-transformers использует HuggingFace кэш (не hub/)
+    cache_dir = Path.home() / ".cache" / "huggingface"
     return cache_dir
 
 

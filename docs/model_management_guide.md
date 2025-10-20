@@ -113,10 +113,10 @@
 
 Модель кэшируется в контейнере по пути:
 ```
-/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/
+/root/.cache/huggingface/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/
 ```
 
-**Примечание:** Используется стандартный кэш HuggingFace Hub (не torch/sentence_transformers).
+**Примечание:** Используется стандартный кэш HuggingFace (не hub/, не torch/sentence_transformers).
 
 ### Проверка через командную строку
 
@@ -131,16 +131,16 @@ bash scripts/check_model.sh
 ```bash
 # Проверка директории
 docker compose -f docker-compose.prod.yml exec app \
-  ls -lh /root/.cache/huggingface/hub/
+  ls -lh /root/.cache/huggingface/
 
 # Проверка размера модели
 docker compose -f docker-compose.prod.yml exec app \
-  du -sh /root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2
+  du -sh /root/.cache/huggingface/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2
 
 # Проверка через Python API
 docker compose -f docker-compose.prod.yml exec app python -c "
 from pathlib import Path
-cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+cache_dir = Path.home() / '.cache' / 'huggingface'
 model_name = 'models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2'
 model_dir = cache_dir / model_name
 
