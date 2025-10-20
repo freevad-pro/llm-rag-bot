@@ -81,6 +81,19 @@
                                              style="width: {{ current_status.progress or 0 }}%">
                                         </div>
                                     </div>
+                                    
+                                    <!-- Информация о этапах прогресса -->
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <strong>Этапы индексации:</strong><br>
+                                            <span class="badge bg-secondary me-1">0%</span> Начало →
+                                            <span class="badge bg-info me-1">5%</span> Загрузка Excel →
+                                            <span class="badge bg-primary me-1">10%</span> Создание коллекции →
+                                            <span class="badge bg-warning me-1">10-90%</span> Индексация товаров →
+                                            <span class="badge bg-success me-1">90%</span> Переключение →
+                                            <span class="badge bg-success">100%</span> Завершение
+                                        </small>
+                                    </div>
                                 </div>
                                 {% endif %}
                                 
@@ -190,6 +203,54 @@
                                     <i class="bi bi-arrow-clockwise"></i>
                                     Обновить статус
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Информация о процессе -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                О процессе индексации
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="small text-muted">
+                                <p><strong>Blue-Green Deployment:</strong></p>
+                                <ul class="mb-2">
+                                    <li>Создается новая коллекция товаров</li>
+                                    <li>Индексация происходит параллельно</li>
+                                    <li>Переключение без простоя системы</li>
+                                </ul>
+                                
+                                <p><strong>Этапы процесса:</strong></p>
+                                <div class="timeline-mini">
+                                    <div class="timeline-item-mini">
+                                        <span class="badge bg-secondary">0%</span>
+                                        <span>Начало индексации</span>
+                                    </div>
+                                    <div class="timeline-item-mini">
+                                        <span class="badge bg-info">5%</span>
+                                        <span>Загрузка товаров из Excel</span>
+                                    </div>
+                                    <div class="timeline-item-mini">
+                                        <span class="badge bg-primary">10%</span>
+                                        <span>Создание коллекции</span>
+                                    </div>
+                                    <div class="timeline-item-mini">
+                                        <span class="badge bg-warning">10-90%</span>
+                                        <span>Индексация товаров</span>
+                                    </div>
+                                    <div class="timeline-item-mini">
+                                        <span class="badge bg-success">90%</span>
+                                        <span>Переключение коллекций</span>
+                                    </div>
+                                    <div class="timeline-item-mini">
+                                        <span class="badge bg-success">100%</span>
+                                        <span>Завершение</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -424,6 +485,24 @@ document.addEventListener('DOMContentLoaded', calculateIndexingDuration);
 /* Стили для статус badge */
 .badge.fs-6 {
     font-size: 0.9rem !important;
+}
+
+/* Стили для мини-таймлайна */
+.timeline-mini {
+    margin-top: 10px;
+}
+
+.timeline-item-mini {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+}
+
+.timeline-item-mini .badge {
+    margin-right: 8px;
+    min-width: 45px;
+    font-size: 0.75rem;
 }
 </style>
 {% endblock %}

@@ -557,17 +557,59 @@ class CatalogSearchService(BaseSearchService):
             self._logger.debug(f"Проиндексирована порция {i + 1}-{i + len(batch)} из {len(products)}")
     
     async def _copy_collection_data(self, source_collection, target_collection) -> None:
-        """Копирует данные из одной коллекции в другую."""
-        # Получаем все данные из источника
-        source_data = source_collection.get()
+        """
+        Копирует данные из одной коллекции в другую батчами.
         
-        if source_data["ids"]:
-            # Копируем данные в целевую коллекцию
-            target_collection.add(
-                ids=source_data["ids"],
-                documents=source_data["documents"],
-                metadatas=source_data["metadatas"]
-            )
+        Это предотвращает зависание при копировании больших коллекций (40K+ товаров)
+        и снижает потребление памяти.
+        """
+        try:
+            # Получаем общее количество документов
+            total_count = source_collection.count()
+            if total_count == 0:
+                self._logger.info("Исходная коллекция пуста, копирование не требуется")
+                return
+            
+            self._logger.info(f"Начинаю копирование {total_count} документов батчами...")
+            
+            # Размер батча - баланс между памятью и производительностью
+            batch_size = 1000
+            offset = 0
+            copied_count = 0
+            
+            while offset < total_count:
+                # Получаем батч данных
+                batch_data = source_collection.get(
+                    limit=batch_size,
+                    offset=offset
+                )
+                
+                if not batch_data["ids"]:
+                    break
+                
+                # Копируем батч в целевую коллекцию
+                target_collection.add(
+                    ids=batch_data["ids"],
+                    documents=batch_data["documents"],
+                    metadatas=batch_data["metadatas"]
+                )
+                
+                copied_count += len(batch_data["ids"])
+                offset += batch_size
+                
+                # Логируем прогресс каждые 5000 документов
+                if copied_count % 5000 == 0:
+                    progress = (copied_count / total_count) * 100
+                    self._logger.info(f"Скопировано {copied_count}/{total_count} документов ({progress:.1f}%)")
+                
+                # Даем системе передохнуть между батчами
+                await asyncio.sleep(0.01)  # 10ms пауза
+            
+            self._logger.info(f"Копирование завершено: {copied_count} документов")
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка копирования данных коллекции: {e}")
+            raise e
     
     # Методы для blue-green deployment
     
@@ -670,7 +712,7 @@ class CatalogSearchService(BaseSearchService):
     
     async def rename_collection(self, old_name: str, new_name: str) -> None:
         """
-        Переименовывает коллекцию (через копирование данных).
+        Переименовывает коллекцию (через копирование данных батчами).
         
         Args:
             old_name: Старое имя коллекции
@@ -681,11 +723,17 @@ class CatalogSearchService(BaseSearchService):
             if not await self.collection_exists(old_name):
                 raise ValueError(f"Коллекция {old_name} не существует")
             
+            self._logger.info(f"Начинаю переименование коллекции: {old_name} -> {new_name}")
+            
             # Получаем старую коллекцию
             old_collection = self._client.get_collection(
                 name=old_name,
                 embedding_function=self._embedding_function
             )
+            
+            # Проверяем размер коллекции
+            total_count = old_collection.count()
+            self._logger.info(f"Размер коллекции {old_name}: {total_count} документов")
             
             # Создаем новую коллекцию
             await self.create_collection(new_name)
@@ -694,16 +742,28 @@ class CatalogSearchService(BaseSearchService):
                 embedding_function=self._embedding_function
             )
             
-            # Копируем данные
+            # Копируем данные батчами (это предотвращает зависание)
             await self._copy_collection_data(old_collection, new_collection)
             
-            # Удаляем старую коллекцию
+            # Проверяем что копирование прошло успешно
+            new_count = new_collection.count()
+            if new_count != total_count:
+                raise ValueError(f"Ошибка копирования: {new_count} != {total_count}")
+            
+            # Удаляем старую коллекцию только после успешного копирования
             self._client.delete_collection(old_name)
             
-            self._logger.info(f"Коллекция переименована: {old_name} -> {new_name}")
+            self._logger.info(f"Коллекция успешно переименована: {old_name} -> {new_name} ({total_count} документов)")
             
         except Exception as e:
             self._logger.error(f"Ошибка переименования коллекции {old_name} -> {new_name}: {e}")
+            # Пытаемся очистить новую коллекцию при ошибке
+            try:
+                if await self.collection_exists(new_name):
+                    self._client.delete_collection(new_name)
+                    self._logger.info(f"Очищена коллекция {new_name} после ошибки")
+            except:
+                pass
             raise e
     
     async def delete_collection(self, collection_name: str) -> None:

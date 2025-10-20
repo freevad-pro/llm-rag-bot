@@ -136,10 +136,13 @@ class CatalogManagementService:
                 progress=0
             )
             
+            # Инициализируем счетчик товаров
+            await self._update_version_progress(version.id, 0, "Начало индексации...", 0)
+            
             self.logger.info(f"Начинаю переиндексацию каталога: {file_path}")
             
             # Шаг 1: Загружаем товары из Excel с мониторингом памяти
-            await self._update_version_progress(version.id, 10, "Загрузка товаров из Excel...")
+            await self._update_version_progress(version.id, 5, "Загрузка товаров из Excel...", 0)
             
             initial_memory = self._monitor_memory()
             self.logger.info(f"Память перед загрузкой Excel: {initial_memory:.1f} MB")
@@ -159,7 +162,7 @@ class CatalogManagementService:
                 await asyncio.sleep(2)
             
             # Шаг 2: Blue-Green индексация
-            await self._update_version_progress(version.id, 20, "Создание новой коллекции...")
+            await self._update_version_progress(version.id, 10, "Создание новой коллекции...", 0)
             
             # Создаем временную коллекцию для новых данных
             temp_collection_name = f"products_catalog_temp_{version.id}"
@@ -240,11 +243,12 @@ class CatalogManagementService:
                 # Индексируем батч
                 await self.catalog_service.index_products_batch(batch, collection_name)
                 
-                # Обновляем прогресс (20% - 90%)
-                progress = 20 + int((i + len(batch)) / total_products * 70)
+                # Обновляем прогресс (10% - 90%)
+                progress = 10 + int((i + len(batch)) / total_products * 80)
                 message = f"Индексировано {i + len(batch)} из {total_products} товаров..."
+                processed_count = i + len(batch)
                 
-                await self._update_version_progress(version_id, progress, message)
+                await self._update_version_progress(version_id, progress, message, processed_count)
                 
                 # Принудительная очистка памяти каждые 100 товаров
                 if (i + len(batch)) % 100 == 0:
@@ -566,13 +570,16 @@ class CatalogManagementService:
         self,
         version_id: int,
         progress: int,
-        message: Optional[str] = None
+        message: Optional[str] = None,
+        products_count: Optional[int] = None
     ) -> None:
         """Обновляет прогресс версии каталога."""
         update_data = {"progress": progress}
         
         if message is not None:
             update_data["progress_message"] = message
+        if products_count is not None:
+            update_data["products_count"] = products_count
         
         stmt = (
             update(CatalogVersion)
