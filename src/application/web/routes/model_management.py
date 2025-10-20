@@ -125,14 +125,29 @@ async def _download_model_task():
         # Загружаем модель через snapshot_download для надёжности
         # Он умеет работать с редиректами, CDN, докачкой при обрыве
         try:
-            local_dir = await asyncio.to_thread(
-                snapshot_download,
-                repo_id=settings.embedding_model,
-                cache_dir=str(cache_dir),  # Указываем напрямую /root/.cache/huggingface
-                resume_download=True,  # Докачка при обрыве
-                max_workers=4,  # Параллельная загрузка файлов
-                local_files_only=False
-            )
+            # Сначала проверяем есть ли модель локально
+            model_name = settings.embedding_model.replace("/", "--")
+            local_model_dir = cache_dir / f"models--{model_name}"
+            
+            # Если модель уже есть - используем её
+            if local_model_dir.exists() and any(local_model_dir.iterdir()):
+                await hybrid_logger.info(f"Модель найдена в кэше: {local_model_dir}")
+                local_dir = await asyncio.to_thread(
+                    snapshot_download,
+                    repo_id=settings.embedding_model,
+                    cache_dir=str(cache_dir),
+                    local_files_only=True  # Используем только локальные файлы
+                )
+            else:
+                # Загружаем с HuggingFace
+                local_dir = await asyncio.to_thread(
+                    snapshot_download,
+                    repo_id=settings.embedding_model,
+                    cache_dir=str(cache_dir),
+                    resume_download=True,  # Докачка при обрыве
+                    max_workers=4,  # Параллельная загрузка файлов
+                    local_files_only=False
+                )
             
             # Останавливаем симуляцию прогресса
             progress_task.cancel()
@@ -202,8 +217,7 @@ async def _download_model_task():
         _download_status["message"] = f"❌ Ошибка загрузки: {str(e)}"
         
         await hybrid_logger.error(
-            f"Ошибка загрузки модели {settings.embedding_model}: {e}",
-            exc_info=True
+            f"Ошибка загрузки модели {settings.embedding_model}: {e}"
         )
 
 
