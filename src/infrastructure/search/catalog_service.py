@@ -753,6 +753,11 @@ class CatalogSearchService(BaseSearchService):
             # Удаляем старую коллекцию только после успешного копирования
             self._client.delete_collection(old_name)
             
+            # КРИТИЧНО: Очищаем кэш коллекции при переименовании активной коллекции
+            if old_name == self.COLLECTION_NAME:
+                self._logger.info("Очищаю кэш коллекции после переименования активной коллекции")
+                self._collection = None
+            
             self._logger.info(f"Коллекция успешно переименована: {old_name} -> {new_name} ({total_count} документов)")
             
         except Exception as e:
@@ -775,6 +780,12 @@ class CatalogSearchService(BaseSearchService):
         """
         try:
             self._client.delete_collection(collection_name)
+            
+            # КРИТИЧНО: Очищаем кэш коллекции при удалении активной коллекции
+            if collection_name == self.COLLECTION_NAME:
+                self._logger.info("Очищаю кэш коллекции после удаления активной коллекции")
+                self._collection = None
+            
             self._logger.info(f"Удалена коллекция: {collection_name}")
             
         except Exception as e:
