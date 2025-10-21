@@ -120,10 +120,22 @@ class CatalogSearchService(BaseSearchService):
                 batch_size=settings.embedding_batch_size
             )
         elif self.embedding_provider == "sentence-transformers":
-            self._embedding_function = SentenceTransformersEmbeddingFunction(
-                model_name=self.embedding_model,
-                batch_size=settings.embedding_batch_size
-            )
+            # Пытаемся использовать глобальный singleton если доступен
+            from .sentence_transformers_embeddings import get_global_embedding_instance
+            
+            global_instance = get_global_embedding_instance()
+            
+            if global_instance is not None and global_instance.model_name == self.embedding_model:
+                # Используем готовый singleton с загруженной моделью
+                self._embedding_function = global_instance
+                self._logger.info(f"Используется глобальный singleton embeddings: {self.embedding_model} (модель уже в памяти)")
+            else:
+                # Создаём новый экземпляр с lazy loading
+                self._embedding_function = SentenceTransformersEmbeddingFunction(
+                    model_name=self.embedding_model,
+                    batch_size=settings.embedding_batch_size
+                )
+                self._logger.info(f"Создан новый экземпляр embeddings: {self.embedding_model} (модель будет загружена при первом использовании)")
         else:
             raise ValueError(f"Неподдерживаемый embedding provider: {self.embedding_provider}. "
                            f"Поддерживаются: openai, sentence-transformers")

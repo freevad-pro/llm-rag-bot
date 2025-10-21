@@ -211,16 +211,24 @@ async def _download_model_task():
         if test_embedding is None or len(test_embedding) == 0:
             raise ValueError("Модель не возвращает эмбеддинги")
         
-        _download_status["progress"] = 98
-        _download_status["message"] = "Финализация..."
+        _download_status["progress"] = 95
+        _download_status["message"] = "Загрузка модели в оперативную память..."
         await asyncio.sleep(0.5)
+        
+        # Загружаем модель в глобальный singleton для переиспользования
+        from ....infrastructure.search.sentence_transformers_embeddings import initialize_global_embedding_instance
+        
+        await initialize_global_embedding_instance(
+            model_name=settings.embedding_model,
+            batch_size=settings.embedding_batch_size
+        )
         
         _download_status["progress"] = 100
         _download_status["message"] = "✅ Модель успешно загружена и готова к использованию!"
         _download_status["is_downloading"] = False
         
         await hybrid_logger.info(
-            f"Модель {settings.embedding_model} успешно загружена. "
+            f"Модель {settings.embedding_model} успешно загружена в память (singleton). "
             f"Путь: {local_dir if 'local_dir' in locals() else 'cache'}"
         )
         

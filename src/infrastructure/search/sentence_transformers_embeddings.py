@@ -9,6 +9,9 @@ from chromadb.api.types import EmbeddingFunction, Documents
 
 logger = logging.getLogger(__name__)
 
+# Глобальный singleton для переиспользования загруженной модели
+_global_embedding_instance: Optional['SentenceTransformersEmbeddingFunction'] = None
+
 
 class SentenceTransformersEmbeddingFunction(EmbeddingFunction):
     """
@@ -173,3 +176,77 @@ RECOMMENDED_MODELS = {
     "small": "sentence-transformers/all-MiniLM-L6-v2",  # Самая компактная
     "large": "sentence-transformers/all-mpnet-base-v2"  # Лучшее качество
 }
+
+
+def get_global_embedding_instance() -> Optional[SentenceTransformersEmbeddingFunction]:
+    """
+    Получить глобальный singleton экземпляр модели эмбеддингов.
+    
+    Returns:
+        Экземпляр модели или None если не инициализирован
+    """
+    return _global_embedding_instance
+
+
+def set_global_embedding_instance(instance: SentenceTransformersEmbeddingFunction) -> None:
+    """
+    Установить глобальный singleton экземпляр модели эмбеддингов.
+    
+    Args:
+        instance: Экземпляр SentenceTransformersEmbeddingFunction с загруженной моделью
+    """
+    global _global_embedding_instance
+    _global_embedding_instance = instance
+    logger.info(f"Глобальный embedding instance установлен: {instance.model_name}")
+
+
+def clear_global_embedding_instance() -> None:
+    """Очистить глобальный singleton (для тестов или ручной выгрузки)."""
+    global _global_embedding_instance
+    if _global_embedding_instance is not None:
+        logger.info("Глобальный embedding instance очищен")
+    _global_embedding_instance = None
+
+
+async def initialize_global_embedding_instance(
+    model_name: Optional[str] = None,
+    batch_size: int = 32
+) -> SentenceTransformersEmbeddingFunction:
+    """
+    Асинхронно инициализирует и загружает модель в глобальный singleton.
+    
+    Эта функция должна вызываться после скачивания модели через кнопку.
+    Загружает модель в память асинхронно (не блокирует event loop).
+    
+    Args:
+        model_name: Название модели (если None, используется по умолчанию)
+        batch_size: Размер батча
+        
+    Returns:
+        Инициализированный экземпляр с загруженной моделью
+        
+    Raises:
+        RuntimeError: Если не удалось загрузить модель
+    """
+    import asyncio
+    
+    if model_name is None:
+        model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    
+    logger.info(f"Асинхронная инициализация глобального embedding instance: {model_name}")
+    
+    # Создаём экземпляр
+    instance = SentenceTransformersEmbeddingFunction(
+        model_name=model_name,
+        batch_size=batch_size
+    )
+    
+    # Загружаем модель асинхронно в отдельном потоке
+    await asyncio.to_thread(instance._initialize_model)
+    
+    # Сохраняем в глобальный singleton
+    set_global_embedding_instance(instance)
+    
+    logger.info(f"Модель {model_name} успешно загружена в память и установлена как singleton")
+    
+    return instance
