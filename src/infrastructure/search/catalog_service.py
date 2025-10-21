@@ -814,12 +814,13 @@ class CatalogSearchService(BaseSearchService):
     
     async def delete_collection(self, collection_name: str) -> None:
         """
-        Удаляет коллекцию.
+        Удаляет коллекцию и физически удаляет её файлы с диска.
         
         Args:
             collection_name: Имя коллекции для удаления
         """
         try:
+            # Сначала удаляем коллекцию из ChromaDB
             self._client.delete_collection(collection_name)
             
             # КРИТИЧНО: Очищаем кэш коллекции при удалении активной коллекции
@@ -827,11 +828,55 @@ class CatalogSearchService(BaseSearchService):
                 self._logger.info("Очищаю кэш коллекции после удаления активной коллекции")
                 self._collection = None
             
-            self._logger.info(f"Удалена коллекция: {collection_name}")
+            # Физически удаляем файлы коллекции с диска
+            await self._delete_collection_files(collection_name)
+            
+            self._logger.info(f"Удалена коллекция и её файлы: {collection_name}")
             
         except Exception as e:
             self._logger.warning(f"Ошибка удаления коллекции {collection_name}: {e}")
             # Не поднимаем исключение, так как коллекция может не существовать
+    
+    async def _delete_collection_files(self, collection_name: str) -> None:
+        """
+        Физически удаляет файлы коллекции с диска.
+        
+        Args:
+            collection_name: Имя коллекции для удаления файлов
+        """
+        try:
+            # Получаем UUID коллекции из ChromaDB
+            collections = self._client.list_collections()
+            collection_uuid = None
+            
+            for collection in collections:
+                if collection.name == collection_name:
+                    collection_uuid = collection.id
+                    break
+            
+            if not collection_uuid:
+                self._logger.warning(f"UUID коллекции {collection_name} не найден")
+                return
+            
+            # Путь к файлам коллекции
+            collection_dir = self._persist_dir / collection_uuid
+            
+            if collection_dir.exists():
+                # Подсчитываем размер перед удалением
+                size_before = sum(f.stat().st_size for f in collection_dir.rglob('*') if f.is_file())
+                size_mb = size_before / (1024 * 1024)
+                
+                # Удаляем директорию с файлами
+                import shutil
+                shutil.rmtree(collection_dir)
+                
+                self._logger.info(f"Физически удалены файлы коллекции {collection_name}: {size_mb:.2f} MB")
+            else:
+                self._logger.warning(f"Директория коллекции {collection_name} не найдена: {collection_dir}")
+                
+        except Exception as e:
+            self._logger.error(f"Ошибка физического удаления файлов коллекции {collection_name}: {e}")
+            # Не поднимаем исключение, чтобы не нарушить основной процесс удаления
     
     def _create_search_document(self, product: Product) -> str:
         """
