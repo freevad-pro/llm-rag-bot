@@ -10,6 +10,7 @@ import gc
 import psutil
 import time
 import asyncio
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -75,15 +76,11 @@ class CatalogSearchService(BaseSearchService):
     """
     Сервис поиска товаров через Chroma DB.
     
-    Использует:
-    - OpenAI Embeddings API: text-embedding-3-small (оптимизация после MVP)
-    - Chroma persist_directory: /app/data/chroma
-    - Blue-green deployment при переиндексации
+    Поддерживает два провайдера эмбеддингов:
+    1. OpenAI API (модели text-embedding-*)
+    2. Локальные модели через sentence-transformers
     
-    Преимущества OpenAI embeddings:
-    - Экономия ~350MB в Docker образе
-    - Лучшее качество поиска для коммерческих каталогов
-    - Оптимизация для CPU-серверов
+    Выбор провайдера определяется в настройках.
     """
     
     COLLECTION_NAME = "products_catalog"
@@ -264,7 +261,7 @@ class CatalogSearchService(BaseSearchService):
             prefix_matches = await self._search_by_article_prefix(collection, query_lower, category)
             
             # Шаг 3: Семантический поиск через эмбеддинги
-            semantic_results = await self._semantic_search(collection, query, category, k)
+            semantic_results = await self._semantic_search(collection, query_lower, category, k)
             
             # Шаг 4: Объединяем результаты (убираем дубликаты, сохраняем лучший score)
             merged_results = self._merge_search_results(exact_matches, prefix_matches, semantic_results)
@@ -292,9 +289,7 @@ class CatalogSearchService(BaseSearchService):
         category: Optional[str] = None
     ) -> list[SearchResult]:
         """
-        Точный поиск по артикулу в метаданных (без учета регистра).
-        
-        Оптимизация: Обрабатываем батчами для больших каталогов (40K+).
+        Точный поиск по артикулу в метаданных (без учета регистра) через where filter.
         
         Args:
             collection: Коллекция Chroma
@@ -305,54 +300,35 @@ class CatalogSearchService(BaseSearchService):
             Список результатов с максимальным score=1.0
         """
         try:
-            total_count = collection.count()
-            if total_count == 0:
+            where_filter = {"article_lower": query}
+            if category:
+                where_filter["category_1"] = category
+            
+            results = collection.get(
+                where=where_filter,
+                include=["metadatas"]
+            )
+            
+            if not results["metadatas"]:
                 return []
             
             exact_matches = []
-            batch_size = 5000
-            offset = 0
-            
-            # Обрабатываем батчами
-            while offset < total_count:
-                batch_results = collection.get(
-                    limit=min(batch_size, total_count - offset),
-                    offset=offset,
-                    include=["metadatas"]  # Только метаданные
+            for metadata in results["metadatas"]:
+                product = Product(
+                    id=metadata.get("id", ""),
+                    product_name=metadata.get("product_name", ""),
+                    description=metadata.get("description", ""),
+                    category_1=metadata.get("category_1", ""),
+                    category_2=metadata.get("category_2", ""),
+                    category_3=metadata.get("category_3", ""),
+                    article=metadata.get("article", ""),
+                    photo_url=metadata.get("photo_url"),
+                    page_url=metadata.get("page_url")
                 )
-                
-                if not batch_results["metadatas"]:
-                    break
-                
-                for metadata in batch_results["metadatas"]:
-                    article = (metadata.get("article") or "").lower()
-                    
-                    # Проверяем точное совпадение
-                    if article == query:
-                        # Проверяем фильтр категории если нужен
-                        if category and metadata.get("category_1") != category:
-                            continue
-                        
-                        # Создаем Product из метаданных
-                        product = Product(
-                            id=metadata.get("id", ""),
-                            product_name=metadata.get("product_name", ""),
-                            description=metadata.get("description", ""),
-                            category_1=metadata.get("category_1", ""),
-                            category_2=metadata.get("category_2", ""),
-                            category_3=metadata.get("category_3", ""),
-                            article=metadata.get("article", ""),
-                            photo_url=metadata.get("photo_url"),
-                            page_url=metadata.get("page_url")
-                        )
-                        
-                        # Точное совпадение артикула = максимальный score
-                        exact_matches.append(SearchResult(product=product, score=1.0))
-                
-                offset += batch_size
+                exact_matches.append(SearchResult(product=product, score=1.0))
             
             if exact_matches:
-                self._logger.debug(f"Найдено {len(exact_matches)} точных совпадений по артикулу '{query}'")
+                self._logger.debug(f"Найдено {len(exact_matches)} точных совпадений по артикулу '{query}' через where-фильтр")
             
             return exact_matches
             
@@ -393,11 +369,17 @@ class CatalogSearchService(BaseSearchService):
             batch_size = 5000
             offset = 0
             
+            # ОПТИМИЗАЦИЯ: Добавляем фильтр по категории если он есть
+            where_filter = None
+            if category:
+                where_filter = {"category_1": category}
+            
             # Обрабатываем батчами
             while offset < total_count:
                 batch_results = collection.get(
                     limit=min(batch_size, total_count - offset),
                     offset=offset,
+                    where=where_filter,
                     include=["metadatas"]  # Только метаданные
                 )
                 
@@ -409,8 +391,8 @@ class CatalogSearchService(BaseSearchService):
                     
                     # Проверяем префикс (но не точное совпадение - оно уже обработано)
                     if article.startswith(query) and article != query:
-                        # Проверяем фильтр категории если нужен
-                        if category and metadata.get("category_1") != category:
+                        # Проверяем фильтр категории если он не был применен в where
+                        if not where_filter and category and metadata.get("category_1") != category:
                             continue
                         
                         # Создаем Product из метаданных
@@ -463,7 +445,7 @@ class CatalogSearchService(BaseSearchService):
             # Подготавливаем фильтры
             where_filter = {}
             if category:
-                where_filter["category"] = category
+                where_filter["category_1"] = category
             
             # Выполняем поиск
             results = collection.query(
@@ -553,135 +535,81 @@ class CatalogSearchService(BaseSearchService):
     
     def _improve_search_results(self, results: list[SearchResult], query: str) -> list[SearchResult]:
         """
-        Улучшает результаты поиска: добавляет boost за совпадения в названии и фильтрует по score.
-        
-        Args:
-            results: Исходные результаты поиска
-            query: Поисковый запрос
-            
-        Returns:
-            Улучшенные и отфильтрованные результаты
+        Улучшает и фильтрует результаты поиска.
+        - Применяет "keyword boost", чтобы спасти релевантные по словам результаты,
+          которые могли получить низкую семантическую оценку.
+        - Гарантирует нечувствительность к регистру.
+        - Фильтрует по минимальному score и обрезает по максимальному количеству.
         """
         if not results:
-            return results
+            return []
             
         improved_results = []
+        # Слова короче 2 символов игнорируются
         query_words = set(word.lower().strip() for word in query.split() if len(word.strip()) > 1)
         
+        if not query_words:
+            # Если запрос слишком короткий, просто фильтруем по score и возвращаем
+            # отсортированный по убыванию результат
+            filtered_results = [r for r in results if r.score >= settings.search_min_score]
+            filtered_results.sort(key=lambda x: x.score, reverse=True)
+            return filtered_results[:settings.search_max_results]
+
         for result in results:
-            # Применяем boost за совпадения в названии
-            boosted_score = self._calculate_name_boost(result, query_words)
+            base_score = result.score
+            product = result.product
+
+            # Объединяем все текстовые поля для надежного поиска по ключевым словам
+            full_text_lower = " ".join(
+                str(field).lower()
+                for field in [
+                    product.product_name,
+                    product.article,
+                    product.description,
+                    product.category_1,
+                    product.category_2,
+                    product.category_3,
+                ]
+                if field
+            )
+
+            # Считаем совпадения слов из запроса во всех полях
+            matches = 0
+            exact_matches = 0
             
-            # Применяем фильтр по минимальному score
-            if boosted_score >= settings.search_min_score:
-                # Создаем новый результат с улучшенным score
-                improved_result = SearchResult(
-                    product=result.product,
-                    score=boosted_score
-                )
-                improved_results.append(improved_result)
+            for word in query_words:
+                if word in full_text_lower:
+                    matches += 1
+                    if re.search(rf'\b{re.escape(word)}\b', full_text_lower):
+                        exact_matches += 1
+
+            keyword_score = 0.0
+            # Если есть точное совпадение слова где-либо - это сильный сигнал
+            if exact_matches > 0:
+                factor = exact_matches / len(query_words)
+                keyword_score = max(keyword_score, 0.85 + (factor * 0.14)) # до 0.99
+            # Если только частичное совпадение (подстрока) - сигнал слабее
+            elif matches > 0:
+                factor = matches / len(query_words)
+                keyword_score = max(keyword_score, 0.75 + (factor * 0.09)) # до 0.84
+
+            # Итоговый score - максимум из семантического и ключевого.
+            # Это "спасает" результаты с точным совпадением слов, но низкой семантической оценкой.
+            final_score = max(base_score, keyword_score)
+            
+            if final_score >= settings.search_min_score:
+                improved_results.append(SearchResult(product=product, score=final_score))
         
         # Сортируем по убыванию score
         improved_results.sort(key=lambda x: x.score, reverse=True)
         
-        # Ограничиваем количество результатов согласно настройкам
+        # Ограничиваем количество результатов
         max_results = settings.search_max_results
         if len(improved_results) > max_results:
             improved_results = improved_results[:max_results]
             self._logger.debug(f"Ограничено до {max_results} результатов")
         
         return improved_results
-    
-    def _calculate_name_boost(self, result: SearchResult, query_words: set[str]) -> float:
-        """
-        Рассчитывает boost за совпадения слов запроса в названии и артикуле товара.
-        
-        Использует поиск подстрок вместо точного совпадения слов для лучшего результата.
-        Например: "винт" найдет "Винт М6", "PG-R" найдет "PG-R-23600"
-        
-        Args:
-            result: Результат поиска
-            query_words: Слова поискового запроса (в нижнем регистре)
-            
-        Returns:
-            Улучшенный score
-        """
-        base_score = result.score
-        product_name = result.product.product_name.lower()
-        product_article = result.product.article.lower() if result.product.article else ""
-        
-        total_boost = 0.0
-        
-        # 1. Boost за совпадения в названии товара (поиск подстрок)
-        name_matches = 0
-        name_exact_matches = 0  # Для точных совпадений слов
-        
-        for word in query_words:
-            if word in product_name:
-                name_matches += 1
-                # Проверяем точное совпадение слова (word boundary)
-                import re
-                if re.search(rf'\b{re.escape(word)}\b', product_name):
-                    name_exact_matches += 1
-        
-        if name_matches > 0 and len(query_words) > 0:
-            # Базовый boost за подстроку
-            name_boost_factor = name_matches / len(query_words)
-            name_boost = settings.search_name_boost * name_boost_factor
-            
-            # Дополнительный boost за точное совпадение слова
-            if name_exact_matches > 0:
-                exact_boost_factor = name_exact_matches / len(query_words)
-                name_boost += settings.search_name_boost * 0.5 * exact_boost_factor
-            
-            total_boost += name_boost
-            
-            self._logger.debug(
-                f"Name boost для '{result.product.product_name}': "
-                f"+{name_boost:.3f} ({name_matches}/{len(query_words)} подстрок, "
-                f"{name_exact_matches} точных совпадений)"
-            )
-        
-        # 2. Boost за совпадения в артикуле (более высокий приоритет)
-        if product_article:
-            article_matches = 0
-            article_prefix_match = False
-            
-            for word in query_words:
-                if word in product_article:
-                    article_matches += 1
-                    # Проверяем начинается ли артикул с этого слова (префикс)
-                    if product_article.startswith(word):
-                        article_prefix_match = True
-            
-            if article_matches > 0 and len(query_words) > 0:
-                article_boost_factor = article_matches / len(query_words)
-                article_boost = settings.search_article_boost * article_boost_factor
-                
-                # Дополнительный boost за префикс (критично для артикулов типа "PG-R")
-                if article_prefix_match:
-                    article_boost += settings.search_article_boost * 0.5
-                
-                total_boost += article_boost
-                
-                self._logger.debug(
-                    f"Article boost для '{result.product.article}': "
-                    f"+{article_boost:.3f} ({article_matches}/{len(query_words)} совпадений, "
-                    f"prefix={article_prefix_match})"
-                )
-        
-        if total_boost > 0:
-            # Ограничиваем итоговый score значением 1.0
-            boosted_score = min(1.0, base_score + total_boost)
-            
-            self._logger.debug(
-                f"Итоговый boost для '{result.product.product_name}': "
-                f"{base_score:.3f} + {total_boost:.3f} = {boosted_score:.3f}"
-            )
-            
-            return boosted_score
-        
-        return base_score
     
     async def get_categories(self) -> list[str]:
         """
@@ -717,17 +645,18 @@ class CatalogSearchService(BaseSearchService):
                 batch_results = collection.get(
                     limit=min(batch_size, total_count - offset),
                     offset=offset,
-                    include=["metadatas"]  # КРИТИЧНО: только метаданные, без документов
+                    include=["metadatas"]
                 )
                 
-                if not batch_results["metadatas"]:
+                if not batch_results or not batch_results.get("metadatas"):
                     break
                 
                 # Извлекаем категории из батча
                 for metadata in batch_results["metadatas"]:
+                    if not metadata: continue
                     for level in ["category_1", "category_2", "category_3"]:
                         category = metadata.get(level)
-                        if category and category.strip():
+                        if isinstance(category, str) and category.strip():
                             categories.add(category.strip())
                 
                 offset += batch_size
@@ -844,7 +773,8 @@ class CatalogSearchService(BaseSearchService):
                     "category_1": product.category_1,
                     "category_2": product.category_2,
                     "category_3": product.category_3,
-                    "article": product.article
+                    "article": product.article,
+                    "article_lower": (product.article or "").lower()
                 }
                 
                 if product.photo_url:
@@ -1192,6 +1122,7 @@ class CatalogSearchService(BaseSearchService):
             "product_name": product.product_name or "",  # ИСПРАВЛЕНО: было "name"
             "description": product.description or "",  # ДОБАВЛЕНО: отсутствовало
             "article": product.article or "",
+            "article_lower": (product.article or "").lower(),
             "category_1": product.category_1 or "",
             "category_2": product.category_2 or "",
             "category_3": product.category_3 or "",
