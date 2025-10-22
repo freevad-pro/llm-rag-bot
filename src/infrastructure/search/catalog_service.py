@@ -294,6 +294,8 @@ class CatalogSearchService(BaseSearchService):
         """
         Точный поиск по артикулу в метаданных (без учета регистра).
         
+        Оптимизация: Обрабатываем батчами для больших каталогов (40K+).
+        
         Args:
             collection: Коллекция Chroma
             query: Поисковый запрос (уже в нижнем регистре)
@@ -303,18 +305,26 @@ class CatalogSearchService(BaseSearchService):
             Список результатов с максимальным score=1.0
         """
         try:
-            # КРИТИЧНО: Получаем ВСЕ документы (по умолчанию limit=10!)
-            # Получаем количество документов сначала
             total_count = collection.count()
             if total_count == 0:
                 return []
             
-            # Получаем все документы с явным limit
-            all_results = collection.get(limit=total_count)
-            
             exact_matches = []
-            if all_results["metadatas"]:
-                for metadata in all_results["metadatas"]:
+            batch_size = 5000
+            offset = 0
+            
+            # Обрабатываем батчами
+            while offset < total_count:
+                batch_results = collection.get(
+                    limit=min(batch_size, total_count - offset),
+                    offset=offset,
+                    include=["metadatas"]  # Только метаданные
+                )
+                
+                if not batch_results["metadatas"]:
+                    break
+                
+                for metadata in batch_results["metadatas"]:
                     article = (metadata.get("article") or "").lower()
                     
                     # Проверяем точное совпадение
@@ -338,6 +348,8 @@ class CatalogSearchService(BaseSearchService):
                         
                         # Точное совпадение артикула = максимальный score
                         exact_matches.append(SearchResult(product=product, score=1.0))
+                
+                offset += batch_size
             
             if exact_matches:
                 self._logger.debug(f"Найдено {len(exact_matches)} точных совпадений по артикулу '{query}'")
@@ -358,6 +370,8 @@ class CatalogSearchService(BaseSearchService):
         Префиксный поиск по артикулу в метаданных.
         Находит артикулы начинающиеся с запроса, например "PG-R" найдет "PG-R-23600"
         
+        Оптимизация: Обрабатываем батчами для больших каталогов (40K+).
+        
         Args:
             collection: Коллекция Chroma
             query: Поисковый запрос (уже в нижнем регистре)
@@ -371,16 +385,26 @@ class CatalogSearchService(BaseSearchService):
             if len(query) < 2:
                 return []
             
-            # КРИТИЧНО: Получаем ВСЕ документы
             total_count = collection.count()
             if total_count == 0:
                 return []
             
-            all_results = collection.get(limit=total_count)
-            
             prefix_matches = []
-            if all_results["metadatas"]:
-                for metadata in all_results["metadatas"]:
+            batch_size = 5000
+            offset = 0
+            
+            # Обрабатываем батчами
+            while offset < total_count:
+                batch_results = collection.get(
+                    limit=min(batch_size, total_count - offset),
+                    offset=offset,
+                    include=["metadatas"]  # Только метаданные
+                )
+                
+                if not batch_results["metadatas"]:
+                    break
+                
+                for metadata in batch_results["metadatas"]:
                     article = (metadata.get("article") or "").lower()
                     
                     # Проверяем префикс (но не точное совпадение - оно уже обработано)
@@ -404,6 +428,8 @@ class CatalogSearchService(BaseSearchService):
                         
                         # Префикс артикула = высокий score (0.9)
                         prefix_matches.append(SearchResult(product=product, score=0.9))
+                
+                offset += batch_size
             
             if prefix_matches:
                 self._logger.debug(f"Найдено {len(prefix_matches)} префиксных совпадений по артикулу '{query}'")
@@ -661,6 +687,9 @@ class CatalogSearchService(BaseSearchService):
         """
         Возвращает список всех доступных категорий.
         
+        Оптимизация: Получаем данные батчами чтобы избежать таймаутов 
+        при большом количестве товаров (40K+).
+        
         Returns:
             Список уникальных категорий из каталога
         """
@@ -669,28 +698,48 @@ class CatalogSearchService(BaseSearchService):
             return []
         
         try:
-            # КРИТИЧНО: Получаем ВСЕ документы (по умолчанию limit=10!)
             total_count = collection.count()
             if total_count == 0:
                 return []
             
-            results = collection.get(limit=total_count)
-            
-            if not results["metadatas"]:
-                return []
-            
             # Извлекаем уникальные категории (из всех трех уровней)
             categories = set()
-            for metadata in results["metadatas"]:
-                for level in ["category_1", "category_2", "category_3"]:
-                    category = metadata.get(level)
-                    if category and category.strip():
-                        categories.add(category.strip())
             
-            return sorted(list(categories))
+            # ОПТИМИЗАЦИЯ: Получаем данные батчами по 5000 документов
+            # чтобы избежать таймаутов и проблем с памятью
+            batch_size = 5000
+            offset = 0
+            
+            self._logger.debug(f"Получение категорий из {total_count} товаров батчами по {batch_size}")
+            
+            while offset < total_count:
+                # Получаем батч только с метаданными (без документов для скорости)
+                batch_results = collection.get(
+                    limit=min(batch_size, total_count - offset),
+                    offset=offset,
+                    include=["metadatas"]  # КРИТИЧНО: только метаданные, без документов
+                )
+                
+                if not batch_results["metadatas"]:
+                    break
+                
+                # Извлекаем категории из батча
+                for metadata in batch_results["metadatas"]:
+                    for level in ["category_1", "category_2", "category_3"]:
+                        category = metadata.get(level)
+                        if category and category.strip():
+                            categories.add(category.strip())
+                
+                offset += batch_size
+                self._logger.debug(f"Обработано {offset}/{total_count} товаров, найдено {len(categories)} категорий")
+            
+            result = sorted(list(categories))
+            self._logger.info(f"Найдено {len(result)} уникальных категорий из {total_count} товаров")
+            
+            return result
             
         except Exception as e:
-            self._logger.error(f"Ошибка получения категорий: {e}")
+            self._logger.error(f"Ошибка получения категорий: {e}", exc_info=True)
             return []
     
     async def is_indexed(self) -> bool:
@@ -929,8 +978,8 @@ class CatalogSearchService(BaseSearchService):
                 product_id = f"product_{product.id}"
                 ids.append(product_id)
                 
-                # Создаем документ для поиска
-                document = self._create_search_document(product)
+                # Создаем документ для поиска (используем метод из Product entity)
+                document = product.get_search_text()
                 documents.append(document)
                 
                 # Создаем метаданные
@@ -1124,38 +1173,9 @@ class CatalogSearchService(BaseSearchService):
             self._logger.error(f"Ошибка физического удаления файлов коллекции {collection_name}: {e}")
             # Не поднимаем исключение, чтобы не нарушить основной процесс удаления
     
-    def _create_search_document(self, product: Product) -> str:
-        """
-        Создает текстовый документ для поиска из товара.
-        
-        Args:
-            product: Товар
-            
-        Returns:
-            Текстовый документ для индексации
-        """
-        # Собираем все текстовые поля товара
-        parts = []
-        
-        if product.product_name:
-            parts.append(product.product_name)
-        
-        if product.description:
-            parts.append(product.description)
-        
-        if product.article:
-            parts.append(f"Артикул: {product.article}")
-        
-        if product.category_1:
-            parts.append(f"Категория: {product.category_1}")
-        
-        if product.category_2:
-            parts.append(f"Подкатегория: {product.category_2}")
-        
-        if product.category_3:
-            parts.append(f"Тип: {product.category_3}")
-        
-        return " | ".join(parts)
+    # УДАЛЕНО: Дублирующий метод _create_search_document
+    # Теперь везде используется product.get_search_text() из Product entity
+    # для единообразия формата документов
     
     def _create_product_metadata(self, product: Product) -> dict:
         """
@@ -1169,7 +1189,8 @@ class CatalogSearchService(BaseSearchService):
         """
         return {
             "id": str(product.id),
-            "name": product.product_name or "",
+            "product_name": product.product_name or "",  # ИСПРАВЛЕНО: было "name"
+            "description": product.description or "",  # ДОБАВЛЕНО: отсутствовало
             "article": product.article or "",
             "category_1": product.category_1 or "",
             "category_2": product.category_2 or "",
