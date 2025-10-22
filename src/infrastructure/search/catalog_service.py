@@ -303,8 +303,14 @@ class CatalogSearchService(BaseSearchService):
             Список результатов с максимальным score=1.0
         """
         try:
-            # Получаем все документы (нет прямого case-insensitive поиска в Chroma)
-            all_results = collection.get()
+            # КРИТИЧНО: Получаем ВСЕ документы (по умолчанию limit=10!)
+            # Получаем количество документов сначала
+            total_count = collection.count()
+            if total_count == 0:
+                return []
+            
+            # Получаем все документы с явным limit
+            all_results = collection.get(limit=total_count)
             
             exact_matches = []
             if all_results["metadatas"]:
@@ -365,7 +371,12 @@ class CatalogSearchService(BaseSearchService):
             if len(query) < 2:
                 return []
             
-            all_results = collection.get()
+            # КРИТИЧНО: Получаем ВСЕ документы
+            total_count = collection.count()
+            if total_count == 0:
+                return []
+            
+            all_results = collection.get(limit=total_count)
             
             prefix_matches = []
             if all_results["metadatas"]:
@@ -658,8 +669,12 @@ class CatalogSearchService(BaseSearchService):
             return []
         
         try:
-            # Получаем все документы
-            results = collection.get()
+            # КРИТИЧНО: Получаем ВСЕ документы (по умолчанию limit=10!)
+            total_count = collection.count()
+            if total_count == 0:
+                return []
+            
+            results = collection.get(limit=total_count)
             
             if not results["metadatas"]:
                 return []
