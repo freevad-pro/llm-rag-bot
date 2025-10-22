@@ -39,6 +39,7 @@ services:
       - /opt/llm-bot/data/chroma:/app/data/chroma
       - /opt/llm-bot/data/uploads:/app/data/uploads
       - /opt/llm-bot/data/logs:/app/logs
+      - /opt/llm-bot/data/models:/app/data/models
       # Монтируем .env файл для синхронизации изменений
       - /opt/llm-bot/config/.env:/app/.env
     restart: unless-stopped
@@ -71,6 +72,7 @@ services:
       - /opt/llm-bot/data/chroma:/app/data/chroma
       - /opt/llm-bot/data/uploads:/app/data/uploads
       - /opt/llm-bot/data/logs:/app/logs
+      - /opt/llm-bot/data/models:/app/data/models
       # Монтируем .env файл для синхронизации изменений
       - /opt/llm-bot/config/.env:/app/.env
     restart: unless-stopped

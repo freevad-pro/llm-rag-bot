@@ -96,6 +96,17 @@ class SearchHandlers:
             state: Состояние FSM
         """
         try:
+            # Создаем или получаем пользователя
+            from ..services.user_service import ensure_user_exists
+            await ensure_user_exists(
+                session=session,
+                chat_id=message.chat.id,
+                telegram_user_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name
+            )
+            
             # Сохраняем сообщение в истории
             await self.save_user_message(
                 session,
@@ -148,6 +159,17 @@ class SearchHandlers:
             state: Состояние FSM
         """
         try:
+            # Создаем или получаем пользователя
+            from ..services.user_service import ensure_user_exists
+            await ensure_user_exists(
+                session=session,
+                chat_id=message.chat.id,
+                telegram_user_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name
+            )
+            
             # Сохраняем сообщение
             await self.save_user_message(
                 session,

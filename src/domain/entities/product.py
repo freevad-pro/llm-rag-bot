@@ -31,17 +31,32 @@ class Product:
     def get_search_text(self) -> str:
         """
         Формирует текст для индексации в векторной БД.
-        Объединяет все текстовые поля для лучшего поиска.
+        
+        ВАЖНО: Артикул и название в начале для лучшего поиска!
+        Embedding модели придают больше веса началу текста.
+        Критично для sentence-transformers с лимитом 128 токенов.
         """
-        search_parts = [
-            self.product_name,
-            self.description or "",
-            self.category_1,
-            self.category_2 or "",
-            self.category_3 or "",
-            self.article
-        ]
-        return " ".join(part for part in search_parts if part.strip())
+        parts = []
+        
+        # 1. Артикул (самый важный для точного поиска)
+        if self.article and self.article.strip():
+            parts.append(f"[{self.article}]")  # В квадратных скобках для выделения
+        
+        # 2. Название товара
+        if self.product_name and self.product_name.strip():
+            parts.append(self.product_name)
+        
+        # 3. Категории (для контекста)
+        categories = [self.category_1, self.category_2 or "", self.category_3 or ""]
+        category_path = " > ".join(c for c in categories if c.strip())
+        if category_path:
+            parts.append(category_path)
+        
+        # 4. Описание (в конце, может быть обрезано при лимите токенов)
+        if self.description and self.description.strip():
+            parts.append(self.description)
+        
+        return " | ".join(parts)
     
     def get_display_name(self) -> str:
         """Возвращает название для отображения пользователю."""

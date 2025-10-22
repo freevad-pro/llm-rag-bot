@@ -133,14 +133,23 @@ class SearchKeyboardBuilder:
         for i, result in enumerate(page_results, 1):
             product = result.product
             
-            # Формируем текст кнопки
-            button_text = f"{i}. {product.get_display_name()}"
-            if len(button_text) > 60:
-                button_text = button_text[:57] + "..."
-            
-            # Добавляем процент релевантности
-            relevance = int(result.score * 100)
-            button_text += f" ({relevance}%)"
+            # Формируем текст кнопки: Артикул | Название
+            if product.article:
+                # Если есть артикул, показываем его
+                button_text = f"{product.article} | {product.product_name}"
+                # Обрезаем если слишком длинное
+                if len(button_text) > 60:
+                    # Сохраняем артикул полностью, обрезаем название
+                    max_name_length = 60 - len(product.article) - 5  # 5 для " | ..."
+                    if max_name_length > 0:
+                        button_text = f"{product.article} | {product.product_name[:max_name_length]}..."
+                    else:
+                        button_text = button_text[:57] + "..."
+            else:
+                # Если нет артикула, просто название
+                button_text = f"{i}. {product.product_name}"
+                if len(button_text) > 60:
+                    button_text = button_text[:57] + "..."
             
             builder.row(
                 InlineKeyboardButton(

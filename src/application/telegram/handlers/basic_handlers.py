@@ -92,6 +92,16 @@ async def handle_start(message: Message, session: AsyncSession):
 async def handle_help(message: Message, session: AsyncSession):
     """Обработчик команды /help"""
     try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
         # Сохраняем команду
         await save_message(
             session=session,
@@ -156,6 +166,16 @@ async def handle_help(message: Message, session: AsyncSession):
 async def handle_contact(message: Message, session: AsyncSession):
     """Обработчик команды /contact"""
     try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
         # Сохраняем команду
         await save_message(
             session=session,
@@ -204,46 +224,8 @@ async def handle_contact(message: Message, session: AsyncSession):
         await message.answer("Произошла ошибка. Попробуйте позже.")
 
 
-@router.message(F.text)
-async def handle_text_message(message: Message, session: AsyncSession):
-    """Обработчик текстовых сообщений"""
-    try:
-        # Сохраняем сообщение пользователя
-        await save_message(
-            session=session,
-            chat_id=message.chat.id,
-            role="user",
-            content=message.text
-        )
-        
-        # Пока что простой ответ (в Итерации 4 здесь будет LLM)
-        response_text = """
-Спасибо за ваше сообщение! 
-
-В данный момент я нахожусь в базовой версии. 
-Полноценная обработка запросов будет реализована в следующих итерациях.
-
-Для срочных вопросов используйте команду /contact для связи с менеджером.
-        """
-        
-        sent_message = await message.answer(response_text)
-        
-        # Сохраняем ответ бота
-        await save_message(
-            session=session,
-            chat_id=message.chat.id,
-            role="assistant",
-            content=response_text
-        )
-        
-        await hybrid_logger.business(
-            "Обработка текстового сообщения",
-            {"chat_id": message.chat.id, "message_length": len(message.text)}
-        )
-        
-    except Exception as e:
-        await hybrid_logger.error(f"Ошибка в handle_text_message: {e}")
-        await message.answer("Произошла ошибка при обработке сообщения.")
+# Старый обработчик handle_text_message удален - функционал перенесен в llm_handlers.py
+# Это предотвращает конфликт обработчиков и позволяет командам работать корректно
 
 
 # Обработчик callback запросов от inline кнопок

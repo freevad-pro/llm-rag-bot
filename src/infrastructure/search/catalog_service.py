@@ -230,7 +230,13 @@ class CatalogSearchService(BaseSearchService):
         k: int = 10
     ) -> list[SearchResult]:
         """
-        Выполняет семантический поиск товаров.
+        Выполняет гибридный поиск товаров: точный/префиксный по артикулу + семантический.
+        
+        Алгоритм:
+        1. Пытается точный поиск по артикулу в метаданных
+        2. Пытается префиксный поиск по артикулу
+        3. Выполняет семантический поиск через эмбеддинги
+        4. Объединяет и ранжирует результаты
         
         Args:
             query: Поисковый запрос пользователя
@@ -248,6 +254,174 @@ class CatalogSearchService(BaseSearchService):
             self._logger.warning("Коллекция не найдена, каталог не проиндексирован")
             return []
         
+        try:
+            query_lower = query.strip().lower()
+            
+            # Шаг 1: Точный поиск по артикулу (приоритет)
+            exact_matches = await self._search_by_article_exact(collection, query_lower, category)
+            
+            # Шаг 2: Префиксный поиск по артикулу
+            prefix_matches = await self._search_by_article_prefix(collection, query_lower, category)
+            
+            # Шаг 3: Семантический поиск через эмбеддинги
+            semantic_results = await self._semantic_search(collection, query, category, k)
+            
+            # Шаг 4: Объединяем результаты (убираем дубликаты, сохраняем лучший score)
+            merged_results = self._merge_search_results(exact_matches, prefix_matches, semantic_results)
+            
+            self._logger.debug(
+                f"Гибридный поиск '{query}': "
+                f"exact={len(exact_matches)}, prefix={len(prefix_matches)}, "
+                f"semantic={len(semantic_results)}, merged={len(merged_results)}"
+            )
+            
+            # Применяем улучшения: boost и фильтрацию
+            improved_results = self._improve_search_results(merged_results, query)
+            
+            self._logger.debug(f"После улучшений: {len(improved_results)} результатов")
+            return improved_results
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка поиска: {e}")
+            return []
+    
+    async def _search_by_article_exact(
+        self, 
+        collection, 
+        query: str,
+        category: Optional[str] = None
+    ) -> list[SearchResult]:
+        """
+        Точный поиск по артикулу в метаданных (без учета регистра).
+        
+        Args:
+            collection: Коллекция Chroma
+            query: Поисковый запрос (уже в нижнем регистре)
+            category: Опциональный фильтр по категории
+            
+        Returns:
+            Список результатов с максимальным score=1.0
+        """
+        try:
+            # Получаем все документы (нет прямого case-insensitive поиска в Chroma)
+            all_results = collection.get()
+            
+            exact_matches = []
+            if all_results["metadatas"]:
+                for metadata in all_results["metadatas"]:
+                    article = (metadata.get("article") or "").lower()
+                    
+                    # Проверяем точное совпадение
+                    if article == query:
+                        # Проверяем фильтр категории если нужен
+                        if category and metadata.get("category_1") != category:
+                            continue
+                        
+                        # Создаем Product из метаданных
+                        product = Product(
+                            id=metadata.get("id", ""),
+                            product_name=metadata.get("product_name", ""),
+                            description=metadata.get("description", ""),
+                            category_1=metadata.get("category_1", ""),
+                            category_2=metadata.get("category_2", ""),
+                            category_3=metadata.get("category_3", ""),
+                            article=metadata.get("article", ""),
+                            photo_url=metadata.get("photo_url"),
+                            page_url=metadata.get("page_url")
+                        )
+                        
+                        # Точное совпадение артикула = максимальный score
+                        exact_matches.append(SearchResult(product=product, score=1.0))
+            
+            if exact_matches:
+                self._logger.debug(f"Найдено {len(exact_matches)} точных совпадений по артикулу '{query}'")
+            
+            return exact_matches
+            
+        except Exception as e:
+            self._logger.warning(f"Ошибка точного поиска по артикулу: {e}")
+            return []
+    
+    async def _search_by_article_prefix(
+        self, 
+        collection, 
+        query: str,
+        category: Optional[str] = None
+    ) -> list[SearchResult]:
+        """
+        Префиксный поиск по артикулу в метаданных.
+        Находит артикулы начинающиеся с запроса, например "PG-R" найдет "PG-R-23600"
+        
+        Args:
+            collection: Коллекция Chroma
+            query: Поисковый запрос (уже в нижнем регистре)
+            category: Опциональный фильтр по категории
+            
+        Returns:
+            Список результатов с высоким score=0.9
+        """
+        try:
+            # Пропускаем если запрос слишком короткий (менее 2 символов)
+            if len(query) < 2:
+                return []
+            
+            all_results = collection.get()
+            
+            prefix_matches = []
+            if all_results["metadatas"]:
+                for metadata in all_results["metadatas"]:
+                    article = (metadata.get("article") or "").lower()
+                    
+                    # Проверяем префикс (но не точное совпадение - оно уже обработано)
+                    if article.startswith(query) and article != query:
+                        # Проверяем фильтр категории если нужен
+                        if category and metadata.get("category_1") != category:
+                            continue
+                        
+                        # Создаем Product из метаданных
+                        product = Product(
+                            id=metadata.get("id", ""),
+                            product_name=metadata.get("product_name", ""),
+                            description=metadata.get("description", ""),
+                            category_1=metadata.get("category_1", ""),
+                            category_2=metadata.get("category_2", ""),
+                            category_3=metadata.get("category_3", ""),
+                            article=metadata.get("article", ""),
+                            photo_url=metadata.get("photo_url"),
+                            page_url=metadata.get("page_url")
+                        )
+                        
+                        # Префикс артикула = высокий score (0.9)
+                        prefix_matches.append(SearchResult(product=product, score=0.9))
+            
+            if prefix_matches:
+                self._logger.debug(f"Найдено {len(prefix_matches)} префиксных совпадений по артикулу '{query}'")
+            
+            return prefix_matches
+            
+        except Exception as e:
+            self._logger.warning(f"Ошибка префиксного поиска по артикулу: {e}")
+            return []
+    
+    async def _semantic_search(
+        self, 
+        collection, 
+        query: str,
+        category: Optional[str] = None,
+        k: int = 10
+    ) -> list[SearchResult]:
+        """
+        Семантический поиск через эмбеддинги.
+        
+        Args:
+            collection: Коллекция Chroma
+            query: Поисковый запрос (исходный, не lowercase)
+            category: Опциональный фильтр по категории
+            k: Количество результатов
+            
+        Returns:
+            Список результатов поиска
+        """
         try:
             # Подготавливаем фильтры
             where_filter = {}
@@ -297,17 +471,48 @@ class CatalogSearchService(BaseSearchService):
                         self._logger.warning(f"Ошибка обработки результата поиска: {e}")
                         continue
             
-            self._logger.debug(f"Найдено {len(search_results)} результатов для запроса: {query}")
-            
-            # Применяем улучшения: boost и фильтрацию
-            improved_results = self._improve_search_results(search_results, query)
-            
-            self._logger.debug(f"После улучшений: {len(improved_results)} результатов")
-            return improved_results
+            return search_results
             
         except Exception as e:
-            self._logger.error(f"Ошибка поиска: {e}")
+            self._logger.error(f"Ошибка семантического поиска: {e}")
             return []
+    
+    def _merge_search_results(
+        self, 
+        exact_matches: list[SearchResult],
+        prefix_matches: list[SearchResult],
+        semantic_results: list[SearchResult]
+    ) -> list[SearchResult]:
+        """
+        Объединяет результаты разных типов поиска, убирая дубликаты.
+        
+        При дубликатах сохраняется результат с максимальным score.
+        Приоритет: exact > prefix > semantic
+        
+        Args:
+            exact_matches: Точные совпадения по артикулу
+            prefix_matches: Префиксные совпадения
+            semantic_results: Семантический поиск
+            
+        Returns:
+            Объединенный список результатов
+        """
+        # Словарь для хранения лучших результатов по product.id
+        best_results = {}
+        
+        # Добавляем все результаты, сохраняя лучший score для каждого товара
+        for results_list in [exact_matches, prefix_matches, semantic_results]:
+            for result in results_list:
+                product_id = result.product.id
+                
+                if product_id not in best_results or result.score > best_results[product_id].score:
+                    best_results[product_id] = result
+        
+        # Преобразуем обратно в список и сортируем по score
+        merged = list(best_results.values())
+        merged.sort(key=lambda x: x.score, reverse=True)
+        
+        return merged
     
     def _improve_search_results(self, results: list[SearchResult], query: str) -> list[SearchResult]:
         """
@@ -354,6 +559,9 @@ class CatalogSearchService(BaseSearchService):
         """
         Рассчитывает boost за совпадения слов запроса в названии и артикуле товара.
         
+        Использует поиск подстрок вместо точного совпадения слов для лучшего результата.
+        Например: "винт" найдет "Винт М6", "PG-R" найдет "PG-R-23600"
+        
         Args:
             result: Результат поиска
             query_words: Слова поискового запроса (в нижнем регистре)
@@ -367,37 +575,62 @@ class CatalogSearchService(BaseSearchService):
         
         total_boost = 0.0
         
-        # 1. Boost за совпадения в названии товара
+        # 1. Boost за совпадения в названии товара (поиск подстрок)
         name_matches = 0
+        name_exact_matches = 0  # Для точных совпадений слов
+        
         for word in query_words:
             if word in product_name:
                 name_matches += 1
+                # Проверяем точное совпадение слова (word boundary)
+                import re
+                if re.search(rf'\b{re.escape(word)}\b', product_name):
+                    name_exact_matches += 1
         
         if name_matches > 0 and len(query_words) > 0:
+            # Базовый boost за подстроку
             name_boost_factor = name_matches / len(query_words)
             name_boost = settings.search_name_boost * name_boost_factor
+            
+            # Дополнительный boost за точное совпадение слова
+            if name_exact_matches > 0:
+                exact_boost_factor = name_exact_matches / len(query_words)
+                name_boost += settings.search_name_boost * 0.5 * exact_boost_factor
+            
             total_boost += name_boost
             
             self._logger.debug(
                 f"Name boost для '{result.product.product_name}': "
-                f"+{name_boost:.3f} ({name_matches}/{len(query_words)} совпадений в названии)"
+                f"+{name_boost:.3f} ({name_matches}/{len(query_words)} подстрок, "
+                f"{name_exact_matches} точных совпадений)"
             )
         
         # 2. Boost за совпадения в артикуле (более высокий приоритет)
         if product_article:
             article_matches = 0
+            article_prefix_match = False
+            
             for word in query_words:
                 if word in product_article:
                     article_matches += 1
+                    # Проверяем начинается ли артикул с этого слова (префикс)
+                    if product_article.startswith(word):
+                        article_prefix_match = True
             
             if article_matches > 0 and len(query_words) > 0:
                 article_boost_factor = article_matches / len(query_words)
                 article_boost = settings.search_article_boost * article_boost_factor
+                
+                # Дополнительный boost за префикс (критично для артикулов типа "PG-R")
+                if article_prefix_match:
+                    article_boost += settings.search_article_boost * 0.5
+                
                 total_boost += article_boost
                 
                 self._logger.debug(
                     f"Article boost для '{result.product.article}': "
-                    f"+{article_boost:.3f} ({article_matches}/{len(query_words)} совпадений в артикуле)"
+                    f"+{article_boost:.3f} ({article_matches}/{len(query_words)} совпадений, "
+                    f"prefix={article_prefix_match})"
                 )
         
         if total_boost > 0:
@@ -542,8 +775,6 @@ class CatalogSearchService(BaseSearchService):
                 # Подготавливаем метаданные
                 metadata = {
                     "id": product.id,
-                    "section_name_1": product.section_name_1,
-                    "section_name_2": product.section_name_2,
                     "product_name": product.product_name,
                     "description": product.description,
                     "category_1": product.category_1,
