@@ -17,6 +17,69 @@ class SearchKeyboardBuilder:
     """
     
     @staticmethod
+    def _sanitize_callback_data(text: str) -> str:
+        """
+        Очищает текст для использования в callback_data.
+        Telegram принимает только ASCII символы и максимум 64 байта.
+        
+        Args:
+            text: Исходный текст
+            
+        Returns:
+            Очищенный текст для callback_data
+        """
+        # Заменяем проблемные символы
+        replacements = {
+            '(': '_',
+            ')': '_',
+            ',': '_',
+            ' ': '_',
+            '-': '_',
+            '/': '_',
+            '\\': '_',
+            ':': '_',
+            ';': '_',
+            '"': '_',
+            "'": '_',
+            '&': '_',
+            '%': '_',
+            '#': '_',
+            '@': '_',
+            '!': '_',
+            '?': '_',
+            '+': '_',
+            '=': '_',
+            '[': '_',
+            ']': '_',
+            '{': '_',
+            '}': '_',
+            '|': '_',
+            '~': '_',
+            '`': '_',
+            '^': '_',
+            '*': '_',
+            '$': '_'
+        }
+        
+        # Применяем замены
+        sanitized = text
+        for old, new in replacements.items():
+            sanitized = sanitized.replace(old, new)
+        
+        # Убираем множественные подчеркивания
+        while '__' in sanitized:
+            sanitized = sanitized.replace('__', '_')
+        
+        # Убираем подчеркивания в начале и конце
+        sanitized = sanitized.strip('_')
+        
+        # Ограничиваем длину до 50 символов (оставляем место для префикса)
+        if len(sanitized) > 50:
+            sanitized = sanitized[:50]
+        
+        return sanitized
+    
+    @staticmethod
     def build_categories_keyboard(categories: list[str], current_page: int = 0, page_size: int = 8) -> InlineKeyboardMarkup:
         """
         Создает клавиатуру с категориями товаров.
@@ -42,20 +105,22 @@ class SearchKeyboardBuilder:
             
             # Первая кнопка в ряду
             category = page_categories[i]
+            category_index = start_idx + i
             row_buttons.append(
                 InlineKeyboardButton(
                     text=category[:25] + "..." if len(category) > 25 else category,
-                    callback_data=f"search_category:{category}"
+                    callback_data=f"search_category:{category_index}"
                 )
             )
             
             # Вторая кнопка в ряду (если есть)
             if i + 1 < len(page_categories):
                 category = page_categories[i + 1]
+                category_index = start_idx + i + 1
                 row_buttons.append(
                     InlineKeyboardButton(
                         text=category[:25] + "..." if len(category) > 25 else category,
-                        callback_data=f"search_category:{category}"
+                        callback_data=f"search_category:{category_index}"
                     )
                 )
             

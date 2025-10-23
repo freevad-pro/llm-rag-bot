@@ -256,18 +256,32 @@ class SearchHandlers:
         """Обработчик поиска в конкретной категории."""
         await callback.answer()
         
-        # Извлекаем категорию из callback_data
-        category = callback.data.split(":", 1)[1]
-        
-        await state.set_state(SearchStates.waiting_for_search_query)
-        await state.update_data(category=category)
-        
-        response_text = (
-            f"🔍 <b>Поиск в категории:</b> {category}\n\n"
-            "Введите поисковый запрос:"
-        )
-        
-        await callback.message.edit_text(response_text, parse_mode="HTML")
+        try:
+            # Извлекаем индекс категории из callback_data
+            category_index = int(callback.data.split(":", 1)[1])
+            
+            # Получаем список всех категорий
+            categories = await self.catalog_service.get_categories()
+            
+            if category_index >= len(categories):
+                await callback.message.edit_text("❌ Категория не найдена.")
+                return
+            
+            category = categories[category_index]
+            
+            await state.set_state(SearchStates.waiting_for_search_query)
+            await state.update_data(category=category)
+            
+            response_text = (
+                f"🔍 <b>Поиск в категории:</b> {category}\n\n"
+                "Введите поисковый запрос:"
+            )
+            
+            await callback.message.edit_text(response_text, parse_mode="HTML")
+            
+        except (ValueError, IndexError) as e:
+            self._logger.error(f"Ошибка обработки callback категории: {e}")
+            await callback.message.edit_text("❌ Ошибка выбора категории.")
     
     async def callback_categories_page(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Обработчик пагинации категорий."""
@@ -367,20 +381,30 @@ class SearchHandlers:
         """Обработчик пагинации результатов поиска."""
         await callback.answer()
         
-        # Извлекаем номер страницы из callback_data
         try:
-            page = int(callback.data.split(":", 1)[1])
-        except (ValueError, IndexError):
-            page = 0
-        
-        # Здесь будет логика загрузки следующей страницы результатов
-        # Пока показываем заглушку
-        await callback.message.edit_text(
-            f"📄 <b>Страница результатов: {page + 1}</b>\n\n"
-            "Пагинация результатов поиска будет реализована в следующих итерациях.",
-            parse_mode="HTML",
-            reply_markup=SearchKeyboardBuilder.back_to_search_menu()
-        )
+            # Извлекаем параметры из callback_data: page:query:category
+            parts = callback.data.split(":", 3)
+            page = int(parts[1])
+            query = parts[2] if len(parts) > 2 else ""
+            category = parts[3] if len(parts) > 3 and parts[3] else None
+            
+            # Выполняем поиск с пагинацией
+            await self._perform_search(
+                user_id=callback.from_user.id,
+                chat_id=callback.message.chat.id,
+                query=query,
+                category=category,
+                message=None,
+                current_page=page,
+                edit_message=callback.message  # Редактируем существующее сообщение
+            )
+            
+        except (ValueError, IndexError) as e:
+            self._logger.error(f"Ошибка обработки пагинации результатов: {e}")
+            await callback.message.edit_text(
+                "❌ Ошибка загрузки страницы результатов.",
+                reply_markup=SearchKeyboardBuilder.back_to_search_menu()
+            )
     
     async def callback_product_details(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Обработчик показа деталей товара."""
@@ -485,7 +509,9 @@ class SearchHandlers:
         chat_id: int, 
         query: str,
         category: Optional[str] = None,
-        message: Optional[Message] = None
+        message: Optional[Message] = None,
+        current_page: int = 0,
+        edit_message: Optional[Message] = None
     ) -> None:
         """
         Выполняет поиск товаров и показывает результаты.
@@ -524,24 +550,36 @@ class SearchHandlers:
                 
                 keyboard = SearchKeyboardBuilder.build_no_results_keyboard(query)
             else:
-                # Показываем результаты
+                # Показываем результаты с пагинацией
                 results_count = len(search_results)
+                page_size = 5
+                total_pages = (results_count + page_size - 1) // page_size
+                
                 response_text = (
                     f"🔍 <b>Поиск:</b> {query}\n"
                     f"📂 <b>Категория:</b> {category or 'Все'}\n\n"
-                    f"✅ <b>Найдено:</b> {results_count} товаров\n\n"
+                    f"✅ <b>Найдено:</b> {results_count} товаров\n"
+                    f"📄 <b>Страница:</b> {current_page + 1} из {total_pages}\n\n"
                     "Выберите товар для подробной информации:"
                 )
                 
                 keyboard = SearchKeyboardBuilder.build_search_results_keyboard(
                     search_results=search_results,
-                    current_page=0,
+                    current_page=current_page,
                     query=query,
                     category=category
                 )
             
             # Отправляем результат
-            if message:
+            if edit_message:
+                # Редактируем существующее сообщение (пагинация)
+                await edit_message.edit_text(
+                    response_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            elif message:
+                # Отправляем новое сообщение
                 await message.answer(
                     response_text,
                     reply_markup=keyboard,
