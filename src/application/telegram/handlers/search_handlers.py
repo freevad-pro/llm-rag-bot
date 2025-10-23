@@ -348,11 +348,11 @@ class SearchHandlers:
                 article
             )
             
-            # Поиск по артикулу (используем как обычный запрос)
+            # Поиск по артикулу (используем точный артикул)
             await self._perform_search(
                 user_id=message.from_user.id,
                 chat_id=message.chat.id,
-                query=f"артикул {article}",
+                query=article,  # Ищем именно артикул, без добавления слова "артикул"
                 category=None,
                 message=message
             )
