@@ -323,10 +323,17 @@ class CatalogSearchService(BaseSearchService):
             batch_size = 2000  # Меньший размер батча для экономии памяти
             offset = 0
             
-            # Фильтр по категории
+            # Фильтр по категории - ищем по всем трем уровням
             where_filter = None
             if category:
-                where_filter = {"category_1": category}
+                # Ищем категорию в любом из трех уровней
+                where_filter = {
+                    "$or": [
+                        {"category_1": category},
+                        {"category_2": category},
+                        {"category_3": category}
+                    ]
+                }
             
             # Обрабатываем батчами
             while offset < total_count and len(name_matches) < 20:  # Ограничиваем результаты
@@ -414,10 +421,17 @@ class CatalogSearchService(BaseSearchService):
             # Ограничиваем количество результатов для экономии памяти
             max_results = min(k, 5)
             
-            # Подготавливаем фильтры
-            where_filter = {}
+            # Подготавливаем фильтры - ищем по всем трем уровням категорий
+            where_filter = None
             if category:
-                where_filter["category_1"] = category
+                # Ищем категорию в любом из трех уровней
+                where_filter = {
+                    "$or": [
+                        {"category_1": category},
+                        {"category_2": category},
+                        {"category_3": category}
+                    ]
+                }
             
             # Выполняем поиск с ограничениями
             results = collection.query(
@@ -474,7 +488,12 @@ class CatalogSearchService(BaseSearchService):
         try:
             where_filter = {"article_lower": query}
             if category:
-                where_filter["category_1"] = category
+                # Ищем категорию в любом из трех уровней
+                where_filter["$or"] = [
+                    {"category_1": category},
+                    {"category_2": category},
+                    {"category_3": category}
+                ]
             
             results = collection.get(
                 where=where_filter,
@@ -544,7 +563,14 @@ class CatalogSearchService(BaseSearchService):
             # ОПТИМИЗАЦИЯ: Добавляем фильтр по категории если он есть
             where_filter = None
             if category:
-                where_filter = {"category_1": category}
+                # Ищем категорию в любом из трех уровней
+                where_filter = {
+                    "$or": [
+                        {"category_1": category},
+                        {"category_2": category},
+                        {"category_3": category}
+                    ]
+                }
             
             # Обрабатываем батчами
             while offset < total_count:
