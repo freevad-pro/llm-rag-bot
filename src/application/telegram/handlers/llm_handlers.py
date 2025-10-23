@@ -42,7 +42,7 @@ class LLMHandlers:
             F.text & ~F.text.startswith('/')
         )
     
-    async def handle_text_message(self, message: Message, session: AsyncSession) -> None:
+    async def handle_text_message(self, message: Message, session: AsyncSession, state: FSMContext) -> None:
         """
         Основной обработчик текстовых сообщений.
         Использует LLM для классификации и генерации ответов.
@@ -50,8 +50,15 @@ class LLMHandlers:
         Args:
             message: Сообщение пользователя
             session: Сессия базы данных
+            state: Состояние FSM
         """
         try:
+            # Проверяем, не находится ли пользователь в состоянии поиска
+            # Если да - пропускаем обработку, пусть search_handlers обработает
+            current_state = await state.get_state()
+            if current_state and current_state.startswith("SearchStates"):
+                self._logger.debug(f"Пропускаем LLM обработку для состояния {current_state}")
+                return
             # Создаем или получаем пользователя
             from ..services.user_service import ensure_user_exists
             await ensure_user_exists(

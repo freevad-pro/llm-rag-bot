@@ -337,7 +337,7 @@ class SearchHandlers:
             
         except Exception as e:
             self._logger.error(f"Ошибка обработки поискового запроса: {e}")
-            await message.answer("❌ Ошибка поиска. Попробуйте еще раз.")
+            await message.answer("❌ Ошибка поиска. Попробуйте позже.")
     
     async def handle_article_search(self, message: Message, state: FSMContext, session: AsyncSession) -> None:
         """
@@ -375,7 +375,7 @@ class SearchHandlers:
             
         except Exception as e:
             self._logger.error(f"Ошибка поиска по артикулу: {e}")
-            await message.answer("❌ Ошибка поиска. Попробуйте еще раз."        )
+            await message.answer("❌ Ошибка поиска. Попробуйте позже.")
 
     async def callback_search_results_page(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Обработчик пагинации результатов поиска."""
