@@ -255,17 +255,22 @@ class CatalogSearchService(BaseSearchService):
             query_lower = query.strip().lower()
             all_results = []
             
+            self._logger.info(f"Начинаем поиск: query='{query}', category='{category}', k={k}")
+            
             # Шаг 1: Точный поиск по артикулу (приоритет)
             exact_matches = await self._search_by_article_exact(collection, query_lower, category)
+            self._logger.debug(f"Точный поиск по артикулу: найдено {len(exact_matches)} результатов")
             all_results.extend(exact_matches)
             
             # Шаг 2: Поиск по названию товара (без эмбеддингов)
             name_matches = await self._search_by_product_name(collection, query_lower, category)
+            self._logger.debug(f"Поиск по названию: найдено {len(name_matches)} результатов")
             all_results.extend(name_matches)
             
             # Шаг 3: Префиксный поиск по артикулу (только если запрос длинный)
             if len(query_lower) >= 3:
                 prefix_matches = await self._search_by_article_prefix(collection, query_lower, category)
+                self._logger.debug(f"Префиксный поиск: найдено {len(prefix_matches)} результатов")
                 all_results.extend(prefix_matches)
             
             # Шаг 4: Убираем дубликаты
@@ -274,7 +279,9 @@ class CatalogSearchService(BaseSearchService):
             # Шаг 5: Если результатов мало, пробуем ограниченный семантический поиск
             if len(unique_results) < 3:
                 try:
+                    self._logger.debug(f"Запускаем семантический поиск, так как найдено только {len(unique_results)} результатов")
                     semantic_results = await self._semantic_search_safe(collection, query_lower, category, k=5)
+                    self._logger.debug(f"Семантический поиск: найдено {len(semantic_results)} результатов")
                     unique_results.extend(semantic_results)
                     unique_results = self._remove_duplicates(unique_results)
                 except Exception as e:
@@ -325,41 +332,46 @@ class CatalogSearchService(BaseSearchService):
             
             # Обрабатываем батчами
             while offset < total_count and len(name_matches) < 20:  # Ограничиваем результаты
-                batch_results = collection.get(
-                    limit=min(batch_size, total_count - offset),
-                    offset=offset,
-                    include=["metadatas"]
-                )
-                
-                if not batch_results["metadatas"]:
-                    break
-                
-                # Ищем совпадения в названиях товаров
-                for metadata in batch_results["metadatas"]:
-                    # Фильтр по категории - проверяем все три уровня
-                    if category:
-                        category_match = (
-                            metadata.get("category_1") == category or
-                            metadata.get("category_2") == category or
-                            metadata.get("category_3") == category
-                        )
-                        if not category_match:
-                            continue
+                try:
+                    batch_results = collection.get(
+                        limit=min(batch_size, total_count - offset),
+                        offset=offset,
+                        include=["metadatas"]
+                    )
                     
-                    product_name = metadata.get("product_name", "").lower()
-                    if query in product_name:
-                        product = Product(
-                            id=metadata.get("id", ""),
-                            product_name=metadata.get("product_name", ""),
-                            description=metadata.get("description", ""),
-                            category_1=metadata.get("category_1", ""),
-                            category_2=metadata.get("category_2", ""),
-                            category_3=metadata.get("category_3", ""),
-                            article=metadata.get("article", ""),
-                            photo_url=metadata.get("photo_url"),
-                            page_url=metadata.get("page_url")
-                        )
-                        name_matches.append(SearchResult(product=product, score=0.8))
+                    if not batch_results["metadatas"]:
+                        break
+                    
+                    # Ищем совпадения в названиях товаров
+                    for metadata in batch_results["metadatas"]:
+                        # Фильтр по категории - проверяем все три уровня
+                        if category:
+                            category_match = (
+                                metadata.get("category_1") == category or
+                                metadata.get("category_2") == category or
+                                metadata.get("category_3") == category
+                            )
+                            if not category_match:
+                                continue
+                        
+                        product_name = metadata.get("product_name", "").lower()
+                        if query in product_name:
+                            product = Product(
+                                id=metadata.get("id", ""),
+                                product_name=metadata.get("product_name", ""),
+                                description=metadata.get("description", ""),
+                                category_1=metadata.get("category_1", ""),
+                                category_2=metadata.get("category_2", ""),
+                                category_3=metadata.get("category_3", ""),
+                                article=metadata.get("article", ""),
+                                photo_url=metadata.get("photo_url"),
+                                page_url=metadata.get("page_url")
+                            )
+                            name_matches.append(SearchResult(product=product, score=0.8))
+                            
+                except Exception as e:
+                    self._logger.error(f"Ошибка получения батча {offset}-{offset+batch_size}: {e}")
+                    break
                 
                 offset += batch_size
             
@@ -814,11 +826,14 @@ class CatalogSearchService(BaseSearchService):
         """
         collection = await self._get_collection()
         if not collection:
+            self._logger.warning("Коллекция не найдена при получении категорий")
             return []
         
         try:
             total_count = collection.count()
+            self._logger.info(f"Получение категорий из {total_count} товаров")
             if total_count == 0:
+                self._logger.warning("Коллекция пуста")
                 return []
             
             # Извлекаем уникальные категории (из всех трех уровней)
