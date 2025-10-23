@@ -25,6 +25,9 @@ from ....infrastructure.utils.timezone_utils import format_moscow_datetime
 # Роутер для управления каталогом
 catalog_router = APIRouter(prefix="/admin/catalog", tags=["catalog"])
 
+# Кэш для проверки модели эмбеддингов (5 минут TTL)
+_model_check_cache = {"last_check": None, "result": True, "ttl": 300}
+
 
 @catalog_router.get("/", response_class=HTMLResponse)
 async def catalog_dashboard(
@@ -52,14 +55,28 @@ async def catalog_upload_page(
     model_warning = None
     
     if settings.embedding_provider == "sentence-transformers":
-        from pathlib import Path
-        cache_dir = Path.home() / ".cache" / "huggingface"
-        model_name = settings.embedding_model.replace("/", "--")
-        model_dir = cache_dir / f"models--{model_name}"
+        import time
+        now = time.time()
         
-        if not (model_dir.exists() and any(model_dir.iterdir())):
-            model_ready = False
-            model_warning = "Модель эмбеддингов не загружена. Перейдите в раздел 'Модель эмбеддингов' для её загрузки."
+        # Используем кэш если проверка была недавно
+        if (_model_check_cache["last_check"] and 
+            now - _model_check_cache["last_check"] < _model_check_cache["ttl"]):
+            model_ready = _model_check_cache["result"]
+        else:
+            # Проверяем модель только если кэш устарел
+            from pathlib import Path
+            cache_dir = Path.home() / ".cache" / "huggingface"
+            model_name = settings.embedding_model.replace("/", "--")
+            model_dir = cache_dir / f"models--{model_name}"
+            
+            model_ready = model_dir.exists() and any(model_dir.iterdir())
+            model_warning = None if model_ready else "Модель эмбеддингов не загружена. Перейдите в раздел 'Модель эмбеддингов' для её загрузки."
+            
+            # Обновляем кэш
+            _model_check_cache.update({
+                "last_check": now,
+                "result": model_ready
+            })
     
     context = {
         "request": request,
@@ -244,13 +261,22 @@ async def catalog_status_api(
     catalog_service = CatalogManagementService(session)
     status = await catalog_service.get_current_indexing_status()
     
+    # Предварительно форматируем время чтобы не делать это в JSONResponse
+    started_at_formatted = None
+    estimated_completion_formatted = None
+    
+    if status.get("started_at"):
+        started_at_formatted = format_moscow_datetime(status.get("started_at"))
+    if status.get("estimated_completion"):
+        estimated_completion_formatted = format_moscow_datetime(status.get("estimated_completion"))
+    
     return JSONResponse({
         "status": status.get("status", "unknown"),
         "progress": status.get("progress", 0),
         "message": status.get("message", ""),
         "products_count": status.get("products_count", 0),
-        "started_at": format_moscow_datetime(status.get("started_at")),
-        "estimated_completion": format_moscow_datetime(status.get("estimated_completion"))
+        "started_at": started_at_formatted,
+        "estimated_completion": estimated_completion_formatted
     })
 
 

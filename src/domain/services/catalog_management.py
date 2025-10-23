@@ -464,22 +464,22 @@ class CatalogManagementService:
         Returns:
             Словарь с информацией о статусе
         """
-        # Сначала ищем активную переиндексацию
-        stmt = select(CatalogVersion).where(
-            CatalogVersion.status == "processing"
-        ).order_by(CatalogVersion.created_at.desc())
+        # Один запрос вместо двух - сначала processing статусы, потом по дате
+        stmt = (
+            select(CatalogVersion)
+            .order_by(
+                # Сначала processing статусы (True идет перед False), потом по дате
+                CatalogVersion.status == "processing",
+                CatalogVersion.created_at.desc()
+            )
+            .limit(1)
+        )
         
         result = await self.session.execute(stmt)
         version = result.scalar_one_or_none()
         
-        # Если нет активной переиндексации, показываем последнюю версию
         if not version:
-            stmt = select(CatalogVersion).order_by(CatalogVersion.created_at.desc()).limit(1)
-            result = await self.session.execute(stmt)
-            version = result.scalar_one_or_none()
-            
-            if not version:
-                return {"status": "idle", "message": "Каталог не загружен"}
+            return {"status": "idle", "message": "Каталог не загружен"}
         
         # Рассчитываем ожидаемое время завершения только для активных процессов
         estimated_completion = None
