@@ -552,22 +552,41 @@ class SearchHandlers:
                 
                 keyboard = SearchKeyboardBuilder.build_no_results_keyboard(query)
             else:
-                # Показываем результаты с пагинацией
+                # Показываем результаты с пагинацией в текстовом формате
                 results_count = len(search_results)
                 page_size = 5
                 total_pages = (results_count + page_size - 1) // page_size
                 
+                # Получаем результаты для текущей страницы
+                start_idx = current_page * page_size
+                end_idx = start_idx + page_size
+                page_results = search_results[start_idx:end_idx]
+                
+                # Формируем заголовок
                 response_text = (
                     f"🔍 <b>Поиск:</b> {query}\n"
                     f"📂 <b>Категория:</b> {category or 'Все'}\n\n"
                     f"✅ <b>Найдено:</b> {results_count} товаров\n"
                     f"📄 <b>Страница:</b> {current_page + 1} из {total_pages}\n\n"
-                    "Выберите товар для подробной информации:"
                 )
                 
-                keyboard = SearchKeyboardBuilder.build_search_results_keyboard(
-                    search_results=search_results,
+                # Добавляем список товаров с порядковыми номерами
+                for i, result in enumerate(page_results, 1):
+                    product = result.product
+                    global_index = start_idx + i
+                    
+                    # Формируем строку товара
+                    if product.article:
+                        item_text = f"{global_index}. <b>{product.article}</b> | {product.product_name}"
+                    else:
+                        item_text = f"{global_index}. {product.product_name}"
+                    
+                    response_text += f"{item_text}\n"
+                
+                # Используем новую клавиатуру для текстового формата
+                keyboard = SearchKeyboardBuilder.build_text_results_keyboard(
                     current_page=current_page,
+                    total_pages=total_pages,
                     query=query,
                     category=category
                 )

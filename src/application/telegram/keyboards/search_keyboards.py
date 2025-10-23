@@ -402,6 +402,81 @@ class SearchKeyboardBuilder:
         return builder.as_markup()
     
     @staticmethod
+    def build_text_results_keyboard(
+        current_page: int = 0,
+        total_pages: int = 1,
+        query: str = "",
+        category: Optional[str] = None
+    ) -> InlineKeyboardMarkup:
+        """
+        Создает клавиатуру для текстового формата результатов поиска.
+        Только навигация и действия, без кнопок товаров.
+        
+        Args:
+            current_page: Текущая страница
+            total_pages: Общее количество страниц
+            query: Поисковый запрос (для навигации)
+            category: Категория фильтра (для навигации)
+            
+        Returns:
+            Inline клавиатура с навигацией и действиями
+        """
+        builder = InlineKeyboardBuilder()
+        
+        # Навигация между страницами результатов
+        nav_buttons = []
+        
+        if current_page > 0:
+            nav_buttons.append(
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"search_results_page:{current_page - 1}|{query}|{category or ''}"
+                )
+            )
+        
+        if current_page < total_pages - 1:
+            nav_buttons.append(
+                InlineKeyboardButton(
+                    text="➡️ Далее",
+                    callback_data=f"search_results_page:{current_page + 1}|{query}|{category or ''}"
+                )
+            )
+        
+        if nav_buttons:
+            builder.row(*nav_buttons)
+        
+        # Дополнительные действия
+        action_buttons = []
+        
+        # Кнопка "Новый поиск"
+        action_buttons.append(
+            InlineKeyboardButton(
+                text="🔍 Новый поиск",
+                callback_data="new_search"
+            )
+        )
+        
+        # Кнопка "Связаться с менеджером"
+        action_buttons.append(
+            InlineKeyboardButton(
+                text="👨‍💼 Менеджер",
+                callback_data="contact_manager"
+            )
+        )
+        
+        builder.row(*action_buttons)
+        
+        # Кнопка "Главное меню"
+        builder.row(
+            InlineKeyboardButton(
+                text="🏠 Главное меню",
+                callback_data="main_menu"
+            )
+        )
+        
+        return builder.as_markup()
+
+    @staticmethod
     def build_no_results_keyboard(query: str) -> InlineKeyboardMarkup:
         """
         Создает клавиатуру для случая, когда ничего не найдено.
