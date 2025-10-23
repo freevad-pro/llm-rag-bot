@@ -725,7 +725,9 @@ class CatalogSearchService(BaseSearchService):
             # отсортированный по убыванию результат
             filtered_results = [r for r in results if r.score >= settings.search_min_score]
             filtered_results.sort(key=lambda x: x.score, reverse=True)
-            return filtered_results[:settings.search_max_results]
+            # Приоритет: настройка в .env, затем параметр k, затем значение по умолчанию
+            max_results = settings.search_max_results if settings.search_max_results > 0 else (k if k > 0 else 10)
+            return filtered_results[:max_results]
 
         for result in results:
             base_score = result.score
@@ -776,7 +778,8 @@ class CatalogSearchService(BaseSearchService):
         improved_results.sort(key=lambda x: x.score, reverse=True)
         
         # Ограничиваем количество результатов
-        max_results = settings.search_max_results
+        # Приоритет: настройка в .env, затем параметр k, затем значение по умолчанию
+        max_results = settings.search_max_results if settings.search_max_results > 0 else (k if k > 0 else 10)
         if len(improved_results) > max_results:
             improved_results = improved_results[:max_results]
             self._logger.debug(f"Ограничено до {max_results} результатов")

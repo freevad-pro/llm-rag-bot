@@ -231,7 +231,7 @@ class SearchKeyboardBuilder:
             nav_buttons.append(
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=f"search_results_page:{current_page - 1}:{query}:{category or ''}"
+                    callback_data=f"search_results_page:{current_page - 1}|{query}|{category or ''}"
                 )
             )
         
@@ -239,7 +239,7 @@ class SearchKeyboardBuilder:
             nav_buttons.append(
                 InlineKeyboardButton(
                     text="➡️ Далее",
-                    callback_data=f"search_results_page:{current_page + 1}:{query}:{category or ''}"
+                    callback_data=f"search_results_page:{current_page + 1}|{query}|{category or ''}"
                 )
             )
         

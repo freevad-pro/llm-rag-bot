@@ -382,11 +382,13 @@ class SearchHandlers:
         await callback.answer()
         
         try:
-            # Извлекаем параметры из callback_data: page:query:category
-            parts = callback.data.split(":", 3)
-            page = int(parts[1])
-            query = parts[2] if len(parts) > 2 else ""
-            category = parts[3] if len(parts) > 3 and parts[3] else None
+            # Извлекаем параметры из callback_data: search_results_page:page|query|category
+            # Сначала убираем префикс "search_results_page:"
+            data_part = callback.data.split(":", 1)[1]  # Получаем "page|query|category"
+            parts = data_part.split("|", 2)
+            page = int(parts[0])
+            query = parts[1] if len(parts) > 1 else ""
+            category = parts[2] if len(parts) > 2 and parts[2] else None
             
             # Выполняем поиск с пагинацией
             await self._perform_search(
@@ -532,7 +534,7 @@ class SearchHandlers:
             search_results = await self.catalog_service.search_products(
                 query=query,
                 category=category,
-                k=20  # Получаем больше результатов для пагинации
+                k=50  # Получаем больше результатов для пагинации
             )
             
             # Удаляем индикатор загрузки
