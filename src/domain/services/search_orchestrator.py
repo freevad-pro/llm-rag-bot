@@ -244,30 +244,83 @@ class SearchOrchestrator:
             services_result = await session.execute(services_query)
             services = services_result.scalars().all()
             
-            # Конвертируем в словари
-            services_data = [
-                {
-                    "title": service.name,
-                    "description": service.description,
-                    "category": service.category_rel.display_name if service.category_rel else "Без категории",
-                    "keywords": service.keywords
+            # Если услуги найдены - используем их
+            if services:
+                # Конвертируем в словари
+                services_data = [
+                    {
+                        "title": service.name,
+                        "description": service.description,
+                        "category": service.category_rel.display_name if service.category_rel else "Без категории",
+                        "keywords": service.keywords
+                    }
+                    for service in services
+                ]
+                
+                # Генерируем ответ об услугах
+                response = await llm_service.generate_service_response(
+                    user_query, services_data, session
+                )
+                
+                return {
+                    "response": response,
+                    "metadata": {
+                        "services_count": len(services_data),
+                        "source": "postgresql_services"
+                    },
+                    "suggested_actions": ["contact_manager", "learn_more"]
                 }
-                for service in services
-            ]
             
-            # Генерируем ответ об услугах
-            response = await llm_service.generate_service_response(
-                user_query, services_data, session
-            )
+            # Если услуги не найдены - используем информацию о компании как fallback
+            self._logger.info("Услуги не найдены в БД, используем информацию о компании как fallback")
             
-            return {
-                "response": response,
-                "metadata": {
-                    "services_count": len(services_data),
-                    "source": "postgresql_services"
-                },
-                "suggested_actions": ["contact_manager", "learn_more"]
-            }
+            # Загружаем активную информацию о компании
+            company_info_query = select(CompanyInfo).where(
+                CompanyInfo.is_active == True
+            ).order_by(CompanyInfo.created_at.desc())
+            
+            result = await session.execute(company_info_query)
+            company_info_record = result.scalar_one_or_none()
+            
+            if company_info_record:
+                company_info = company_info_record.content
+                self._logger.info(f"Используем информацию о компании из файла: {company_info_record.original_filename}")
+                
+                # Генерируем ответ на основе информации о компании
+                response = await llm_service.generate_company_info_response(
+                    user_query, company_info, session
+                )
+                
+                return {
+                    "response": response,
+                    "metadata": {
+                        "services_count": 0,
+                        "source": "company_info_fallback",
+                        "has_custom_info": True,
+                        "info_file": company_info_record.original_filename
+                    },
+                    "suggested_actions": ["contact_manager", "learn_more"]
+                }
+            else:
+                # Если и информация о компании отсутствует - базовый ответ
+                self._logger.warning("Информация о компании не найдена, используем базовый ответ")
+                
+                fallback_response = (
+                    "К сожалению, подробная информация об услугах компании в данный момент недоступна. "
+                    "Наша компания специализируется на поставке оборудования и запчастей, "
+                    "предоставляет профессиональные консультации и техническую поддержку. "
+                    "Для получения подробной информации о наших услугах и возможностях "
+                    "рекомендую связаться с нашими менеджерами."
+                )
+                
+                return {
+                    "response": fallback_response,
+                    "metadata": {
+                        "services_count": 0,
+                        "source": "basic_fallback"
+                    },
+                    "suggested_actions": ["contact_manager"]
+                }
             
         except Exception as e:
             self._logger.error(f"Ошибка обработки запроса услуг: {e}")
