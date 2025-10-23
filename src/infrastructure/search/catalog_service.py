@@ -227,13 +227,13 @@ class CatalogSearchService(BaseSearchService):
         k: int = 10
     ) -> list[SearchResult]:
         """
-        Выполняет гибридный поиск товаров: точный/префиксный по артикулу + семантический.
+        Выполняет безопасный поиск товаров без семантического поиска для предотвращения OOM.
         
         Алгоритм:
-        1. Пытается точный поиск по артикулу в метаданных
-        2. Пытается префиксный поиск по артикулу
-        3. Выполняет семантический поиск через эмбеддинги
-        4. Объединяет и ранжирует результаты
+        1. Точный поиск по артикулу в метаданных
+        2. Поиск по названию товара (без эмбеддингов)
+        3. Префиксный поиск по артикулу
+        4. Только если результатов мало - ограниченный семантический поиск
         
         Args:
             query: Поисковый запрос пользователя
@@ -253,33 +253,205 @@ class CatalogSearchService(BaseSearchService):
         
         try:
             query_lower = query.strip().lower()
+            all_results = []
             
             # Шаг 1: Точный поиск по артикулу (приоритет)
             exact_matches = await self._search_by_article_exact(collection, query_lower, category)
+            all_results.extend(exact_matches)
             
-            # Шаг 2: Префиксный поиск по артикулу
-            prefix_matches = await self._search_by_article_prefix(collection, query_lower, category)
+            # Шаг 2: Поиск по названию товара (без эмбеддингов)
+            name_matches = await self._search_by_product_name(collection, query_lower, category)
+            all_results.extend(name_matches)
             
-            # Шаг 3: Семантический поиск через эмбеддинги
-            semantic_results = await self._semantic_search(collection, query_lower, category, k)
+            # Шаг 3: Префиксный поиск по артикулу (только если запрос длинный)
+            if len(query_lower) >= 3:
+                prefix_matches = await self._search_by_article_prefix(collection, query_lower, category)
+                all_results.extend(prefix_matches)
             
-            # Шаг 4: Объединяем результаты (убираем дубликаты, сохраняем лучший score)
-            merged_results = self._merge_search_results(exact_matches, prefix_matches, semantic_results)
+            # Шаг 4: Убираем дубликаты
+            unique_results = self._remove_duplicates(all_results)
+            
+            # Шаг 5: Если результатов мало, пробуем ограниченный семантический поиск
+            if len(unique_results) < 3:
+                try:
+                    semantic_results = await self._semantic_search_safe(collection, query_lower, category, k=5)
+                    unique_results.extend(semantic_results)
+                    unique_results = self._remove_duplicates(unique_results)
+                except Exception as e:
+                    self._logger.warning(f"Семантический поиск пропущен из-за ошибки: {e}")
+            
+            # Шаг 6: Сортируем и ограничиваем результаты
+            final_results = self._improve_search_results(unique_results, query)[:k]
             
             self._logger.debug(
-                f"Гибридный поиск '{query}': "
-                f"exact={len(exact_matches)}, prefix={len(prefix_matches)}, "
-                f"semantic={len(semantic_results)}, merged={len(merged_results)}"
+                f"Безопасный поиск '{query}': найдено {len(final_results)} результатов"
             )
             
-            # Применяем улучшения: boost и фильтрацию
-            improved_results = self._improve_search_results(merged_results, query)
-            
-            self._logger.debug(f"После улучшений: {len(improved_results)} результатов")
-            return improved_results
+            return final_results
             
         except Exception as e:
             self._logger.error(f"Ошибка поиска: {e}")
+            return []
+    
+    async def _search_by_product_name(
+        self, 
+        collection, 
+        query: str,
+        category: Optional[str] = None
+    ) -> list[SearchResult]:
+        """
+        Поиск по названию товара без использования эмбеддингов.
+        Использует батчевую обработку для предотвращения OOM.
+        
+        Args:
+            collection: Коллекция Chroma
+            query: Поисковый запрос (уже в нижнем регистре)
+            category: Опциональный фильтр по категории
+            
+        Returns:
+            Список результатов с score=0.8
+        """
+        try:
+            if len(query) < 2:
+                return []
+            
+            total_count = collection.count()
+            if total_count == 0:
+                return []
+            
+            name_matches = []
+            batch_size = 2000  # Меньший размер батча для экономии памяти
+            offset = 0
+            
+            # Фильтр по категории
+            where_filter = None
+            if category:
+                where_filter = {"category_1": category}
+            
+            # Обрабатываем батчами
+            while offset < total_count and len(name_matches) < 20:  # Ограничиваем результаты
+                batch_results = collection.get(
+                    limit=min(batch_size, total_count - offset),
+                    offset=offset,
+                    where=where_filter,
+                    include=["metadatas"]
+                )
+                
+                if not batch_results["metadatas"]:
+                    break
+                
+                # Ищем совпадения в названиях товаров
+                for metadata in batch_results["metadatas"]:
+                    product_name = metadata.get("product_name", "").lower()
+                    if query in product_name:
+                        product = Product(
+                            id=metadata.get("id", ""),
+                            product_name=metadata.get("product_name", ""),
+                            description=metadata.get("description", ""),
+                            category_1=metadata.get("category_1", ""),
+                            category_2=metadata.get("category_2", ""),
+                            category_3=metadata.get("category_3", ""),
+                            article=metadata.get("article", ""),
+                            photo_url=metadata.get("photo_url"),
+                            page_url=metadata.get("page_url")
+                        )
+                        name_matches.append(SearchResult(product=product, score=0.8))
+                
+                offset += batch_size
+            
+            if name_matches:
+                self._logger.debug(f"Найдено {len(name_matches)} совпадений по названию '{query}'")
+            
+            return name_matches
+            
+        except Exception as e:
+            self._logger.warning(f"Ошибка поиска по названию: {e}")
+            return []
+    
+    def _remove_duplicates(self, results: list[SearchResult]) -> list[SearchResult]:
+        """
+        Убирает дубликаты товаров, сохраняя лучший score.
+        
+        Args:
+            results: Список результатов поиска
+            
+        Returns:
+            Список уникальных результатов
+        """
+        seen_products = {}
+        
+        for result in results:
+            product_id = result.product.id
+            if product_id not in seen_products:
+                seen_products[product_id] = result
+            else:
+                # Сохраняем результат с лучшим score
+                if result.score > seen_products[product_id].score:
+                    seen_products[product_id] = result
+        
+        return list(seen_products.values())
+    
+    async def _semantic_search_safe(
+        self, 
+        collection, 
+        query: str,
+        category: Optional[str] = None,
+        k: int = 5
+    ) -> list[SearchResult]:
+        """
+        Безопасный семантический поиск с ограничениями для предотвращения OOM.
+        
+        Args:
+            collection: Коллекция Chroma
+            query: Поисковый запрос
+            category: Опциональный фильтр по категории
+            k: Количество результатов
+            
+        Returns:
+            Список результатов поиска
+        """
+        try:
+            # Ограничиваем количество результатов для экономии памяти
+            max_results = min(k, 5)
+            
+            # Подготавливаем фильтры
+            where_filter = {}
+            if category:
+                where_filter["category_1"] = category
+            
+            # Выполняем поиск с ограничениями
+            results = collection.query(
+                query_texts=[query],
+                n_results=max_results,
+                where=where_filter if where_filter else None,
+                include=["metadatas", "distances"]
+            )
+            
+            if not results["metadatas"] or not results["metadatas"][0]:
+                return []
+            
+            semantic_results = []
+            for i, metadata in enumerate(results["metadatas"][0]):
+                distance = results["distances"][0][i] if results["distances"] and results["distances"][0] else 1.0
+                score = max(0.1, 1.0 - distance)  # Конвертируем расстояние в score
+                
+                product = Product(
+                    id=metadata.get("id", ""),
+                    product_name=metadata.get("product_name", ""),
+                    description=metadata.get("description", ""),
+                    category_1=metadata.get("category_1", ""),
+                    category_2=metadata.get("category_2", ""),
+                    category_3=metadata.get("category_3", ""),
+                    article=metadata.get("article", ""),
+                    photo_url=metadata.get("photo_url"),
+                    page_url=metadata.get("page_url")
+                )
+                semantic_results.append(SearchResult(product=product, score=score))
+            
+            return semantic_results
+            
+        except Exception as e:
+            self._logger.warning(f"Ошибка безопасного семантического поиска: {e}")
             return []
     
     async def _search_by_article_exact(
