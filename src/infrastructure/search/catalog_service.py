@@ -323,24 +323,11 @@ class CatalogSearchService(BaseSearchService):
             batch_size = 2000  # Меньший размер батча для экономии памяти
             offset = 0
             
-            # Фильтр по категории - ищем по всем трем уровням
-            where_filter = None
-            if category:
-                # Ищем категорию в любом из трех уровней
-                where_filter = {
-                    "$or": [
-                        {"category_1": category},
-                        {"category_2": category},
-                        {"category_3": category}
-                    ]
-                }
-            
             # Обрабатываем батчами
             while offset < total_count and len(name_matches) < 20:  # Ограничиваем результаты
                 batch_results = collection.get(
                     limit=min(batch_size, total_count - offset),
                     offset=offset,
-                    where=where_filter,
                     include=["metadatas"]
                 )
                 
@@ -349,6 +336,16 @@ class CatalogSearchService(BaseSearchService):
                 
                 # Ищем совпадения в названиях товаров
                 for metadata in batch_results["metadatas"]:
+                    # Фильтр по категории - проверяем все три уровня
+                    if category:
+                        category_match = (
+                            metadata.get("category_1") == category or
+                            metadata.get("category_2") == category or
+                            metadata.get("category_3") == category
+                        )
+                        if not category_match:
+                            continue
+                    
                     product_name = metadata.get("product_name", "").lower()
                     if query in product_name:
                         product = Product(
@@ -421,23 +418,10 @@ class CatalogSearchService(BaseSearchService):
             # Ограничиваем количество результатов для экономии памяти
             max_results = min(k, 5)
             
-            # Подготавливаем фильтры - ищем по всем трем уровням категорий
-            where_filter = None
-            if category:
-                # Ищем категорию в любом из трех уровней
-                where_filter = {
-                    "$or": [
-                        {"category_1": category},
-                        {"category_2": category},
-                        {"category_3": category}
-                    ]
-                }
-            
             # Выполняем поиск с ограничениями
             results = collection.query(
                 query_texts=[query],
                 n_results=max_results,
-                where=where_filter if where_filter else None,
                 include=["metadatas", "distances"]
             )
             
@@ -446,6 +430,16 @@ class CatalogSearchService(BaseSearchService):
             
             semantic_results = []
             for i, metadata in enumerate(results["metadatas"][0]):
+                # Фильтр по категории - проверяем все три уровня
+                if category:
+                    category_match = (
+                        metadata.get("category_1") == category or
+                        metadata.get("category_2") == category or
+                        metadata.get("category_3") == category
+                    )
+                    if not category_match:
+                        continue
+                
                 distance = results["distances"][0][i] if results["distances"] and results["distances"][0] else 1.0
                 score = max(0.1, 1.0 - distance)  # Конвертируем расстояние в score
                 
@@ -486,17 +480,9 @@ class CatalogSearchService(BaseSearchService):
             Список результатов с максимальным score=1.0
         """
         try:
-            where_filter = {"article_lower": query}
-            if category:
-                # Ищем категорию в любом из трех уровней
-                where_filter["$or"] = [
-                    {"category_1": category},
-                    {"category_2": category},
-                    {"category_3": category}
-                ]
-            
+            # Получаем все товары с нужным артикулом
             results = collection.get(
-                where=where_filter,
+                where={"article_lower": query},
                 include=["metadatas"]
             )
             
@@ -505,6 +491,16 @@ class CatalogSearchService(BaseSearchService):
             
             exact_matches = []
             for metadata in results["metadatas"]:
+                # Фильтр по категории - проверяем все три уровня
+                if category:
+                    category_match = (
+                        metadata.get("category_1") == category or
+                        metadata.get("category_2") == category or
+                        metadata.get("category_3") == category
+                    )
+                    if not category_match:
+                        continue
+                
                 product = Product(
                     id=metadata.get("id", ""),
                     product_name=metadata.get("product_name", ""),
@@ -560,24 +556,11 @@ class CatalogSearchService(BaseSearchService):
             batch_size = 5000
             offset = 0
             
-            # ОПТИМИЗАЦИЯ: Добавляем фильтр по категории если он есть
-            where_filter = None
-            if category:
-                # Ищем категорию в любом из трех уровней
-                where_filter = {
-                    "$or": [
-                        {"category_1": category},
-                        {"category_2": category},
-                        {"category_3": category}
-                    ]
-                }
-            
             # Обрабатываем батчами
             while offset < total_count:
                 batch_results = collection.get(
                     limit=min(batch_size, total_count - offset),
                     offset=offset,
-                    where=where_filter,
                     include=["metadatas"]  # Только метаданные
                 )
                 
@@ -585,13 +568,20 @@ class CatalogSearchService(BaseSearchService):
                     break
                 
                 for metadata in batch_results["metadatas"]:
+                    # Фильтр по категории - проверяем все три уровня
+                    if category:
+                        category_match = (
+                            metadata.get("category_1") == category or
+                            metadata.get("category_2") == category or
+                            metadata.get("category_3") == category
+                        )
+                        if not category_match:
+                            continue
+                    
                     article = (metadata.get("article") or "").lower()
                     
                     # Проверяем префикс (но не точное совпадение - оно уже обработано)
                     if article.startswith(query) and article != query:
-                        # Проверяем фильтр категории если он не был применен в where
-                        if not where_filter and category and metadata.get("category_1") != category:
-                            continue
                         
                         # Создаем Product из метаданных
                         product = Product(
