@@ -53,10 +53,10 @@ class LLMHandlers:
             state: Состояние FSM
         """
         try:
-            # Проверяем, не находится ли пользователь в состоянии поиска
-            # Если да - пропускаем обработку, пусть search_handlers обработает
+            # Проверяем, не находится ли пользователь в состоянии поиска или сбора лидов
+            # Если да - пропускаем обработку, пусть соответствующие обработчики обработают
             current_state = await state.get_state()
-            if current_state and current_state.startswith("SearchStates"):
+            if current_state and (current_state.startswith("SearchStates") or current_state.startswith("LeadStates")):
                 self._logger.debug(f"Пропускаем LLM обработку для состояния {current_state}")
                 return
             # Создаем или получаем пользователя

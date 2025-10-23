@@ -336,7 +336,7 @@ class SearchHandlers:
             await state.clear()
             
         except Exception as e:
-            self._logger.error(f"Ошибка обработки поискового запроса: {e}")
+            self._logger.error(f"Ошибка обработки поискового запроса: {e}", exc_info=True)
             await message.answer("❌ Ошибка поиска. Попробуйте позже.")
     
     async def handle_article_search(self, message: Message, state: FSMContext, session: AsyncSession) -> None:
@@ -374,7 +374,7 @@ class SearchHandlers:
             await state.clear()
             
         except Exception as e:
-            self._logger.error(f"Ошибка поиска по артикулу: {e}")
+            self._logger.error(f"Ошибка поиска по артикулу: {e}", exc_info=True)
             await message.answer("❌ Ошибка поиска. Попробуйте позже.")
 
     async def callback_search_results_page(self, callback: CallbackQuery, state: FSMContext) -> None:
@@ -537,6 +537,9 @@ class SearchHandlers:
                 k=50  # Получаем больше результатов для пагинации
             )
             
+            # Отладочная информация
+            self._logger.debug(f"Поиск '{query}' в категории '{category}': найдено {len(search_results)} результатов")
+            
             # Удаляем индикатор загрузки
             if message:
                 await loading_msg.delete()
@@ -572,11 +575,16 @@ class SearchHandlers:
                 
                 # Добавляем список товаров с порядковыми номерами
                 for i, result in enumerate(page_results, 1):
+                    # Проверяем корректность результата
+                    if not hasattr(result, 'product') or result.product is None:
+                        self._logger.warning(f"Некорректный результат поиска: {result}")
+                        continue
+                    
                     product = result.product
                     global_index = start_idx + i
                     
                     # Формируем строку товара
-                    if product.article:
+                    if product.article and product.article.strip():
                         item_text = f"{global_index}. <b>{product.article}</b> | {product.product_name}"
                     else:
                         item_text = f"{global_index}. {product.product_name}"
@@ -611,7 +619,7 @@ class SearchHandlers:
             # await self.save_assistant_message(session, user_id, chat_id, response_text)
             
         except Exception as e:
-            self._logger.error(f"Ошибка выполнения поиска: {e}")
+            self._logger.error(f"Ошибка выполнения поиска: {e}", exc_info=True)
             error_text = "❌ Ошибка поиска. Попробуйте позже."
             
             if message:
