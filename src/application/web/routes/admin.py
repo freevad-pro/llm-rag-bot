@@ -115,7 +115,7 @@ async def admin_dashboard(
         return RedirectResponse(url="/admin/login", status_code=302)
     
     # Получаем реальную статистику системы
-    from ...domain.services.system_statistics_service import SystemStatisticsService
+    from ....domain.services.system_statistics_service import SystemStatisticsService
     stats_service = SystemStatisticsService(session)
     stats = await stats_service.get_dashboard_stats()
     
