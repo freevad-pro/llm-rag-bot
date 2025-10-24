@@ -32,7 +32,8 @@ class OpenAIProvider(LLMProvider):
         if not self.api_key:
             raise ValueError("OpenAI API key не предоставлен в конфигурации")
         
-        self.model = config.get("model", "gpt-3.5-turbo")
+        from ...config.settings import settings
+        self.model = config.get("model", settings.openai_default_model)
         self.timeout = config.get("timeout", 30)
         
         # Инициализируем клиент

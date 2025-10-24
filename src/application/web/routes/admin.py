@@ -104,7 +104,8 @@ async def require_admin_only(current_user: AdminUser = Depends(require_admin_use
 @admin_router.get("/", response_class=HTMLResponse)
 async def admin_dashboard(
     request: Request,
-    current_user: Optional[AdminUser] = Depends(get_current_admin_user)
+    current_user: Optional[AdminUser] = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Главная страница админ-панели.
@@ -113,17 +114,16 @@ async def admin_dashboard(
     if not current_user:
         return RedirectResponse(url="/admin/login", status_code=302)
     
-    # TODO: Получить статистику системы
+    # Получаем реальную статистику системы
+    from ...domain.services.system_statistics_service import SystemStatisticsService
+    stats_service = SystemStatisticsService(session)
+    stats = await stats_service.get_dashboard_stats()
+    
     context = {
         "request": request,
         "current_user": current_user,
         "page_title": "Панель управления",
-        "stats": {
-            "users_count": 0,  # TODO: реальные данные
-            "conversations_count": 0,
-            "leads_count": 0,
-            "catalog_products": 0,
-        }
+        "stats": stats
     }
     
     return templates.TemplateResponse("admin/dashboard.html", context)

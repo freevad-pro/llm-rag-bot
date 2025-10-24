@@ -72,7 +72,7 @@ class LLMProviderFactory:
         if provider_name == "openai":
             config = {
                 "api_key": settings.openai_api_key,
-                "model": "gpt-3.5-turbo",
+                "model": settings.openai_default_model,
                 "timeout": 30
             }
         elif provider_name == "yandex":
