@@ -15,6 +15,7 @@ from src.application.telegram.keyboards.lead_keyboards import (
     get_main_reply_keyboard, 
     get_menu_reply_keyboard
 )
+from src.application.telegram.keyboards.search_keyboards import get_main_search_keyboard
 
 
 router = Router()
@@ -356,8 +357,8 @@ async def handle_menu_button(message: Message, session: AsyncSession):
 
 
 @router.message(F.text == "🔍 Поиск товаров")
-async def handle_search_button(message: Message, session: AsyncSession):
-    """Обработчик кнопки Поиск товаров"""
+async def handle_search_button(message: Message, session: AsyncSession, state: FSMContext):
+    """Обработчик кнопки Поиск товаров - вызывает тот же обработчик что и callback"""
     try:
         # Создаем или получаем пользователя
         await ensure_user_exists(
@@ -377,28 +378,29 @@ async def handle_search_button(message: Message, session: AsyncSession):
             content=message.text
         )
         
-        search_text = """
-<b>🔍 Поиск товаров</b>
-
-Опишите, что вы ищете:
-• "Нужен насос для воды"
-• "Болты М12 оцинкованные" 
-• "Электродвигатель 3 кВт"
-
-Просто напишите ваш запрос, и я найду подходящие товары! 🚀
-        """
+        # Очищаем состояние FSM (как в callback обработчике)
+        await state.clear()
         
-        # Возвращаемся к основной клавиатуре
-        keyboard = get_main_reply_keyboard()
+        # Используем тот же текст и клавиатуру что и в callback обработчике
+        response_text = (
+            "🔍 <b>Новый поиск</b>\n\n"
+            "Выберите способ поиска:"
+        )
         
-        await message.answer(search_text, reply_markup=keyboard)
+        # Показываем ту же клавиатуру что и callback обработчик
+        keyboard = get_main_search_keyboard()
+        
+        await message.answer(
+            response_text,
+            reply_markup=keyboard
+        )
         
         # Сохраняем ответ
         await save_message(
             session=session,
             chat_id=message.chat.id,
             role="assistant",
-            content=search_text
+            content=response_text
         )
         
     except Exception as e:
@@ -407,8 +409,8 @@ async def handle_search_button(message: Message, session: AsyncSession):
 
 
 @router.message(F.text == "📞 Связаться с менеджером")
-async def handle_contact_button(message: Message, session: AsyncSession):
-    """Обработчик кнопки Связаться с менеджером"""
+async def handle_contact_button(message: Message, session: AsyncSession, state: FSMContext):
+    """Обработчик кнопки Связаться с менеджером - вызывает тот же обработчик что и callback"""
     try:
         # Создаем или получаем пользователя
         await ensure_user_exists(
@@ -428,37 +430,30 @@ async def handle_contact_button(message: Message, session: AsyncSession):
             content=message.text
         )
         
-        contact_text = """
-<b>📞 Связь с менеджером</b>
-
-Для персональной консультации с нашим менеджером, пожалуйста, оставьте ваши контактные данные:
-
-<b>Обязательные поля:</b>
-• Ваше имя
-• Телефон ИЛИ email
-
-<b>Дополнительно:</b>
-• Название компании
-• Ваш вопрос
-
-Просто напишите сообщение в формате:
-"Иван Петров, +7(999)123-45-67, ООО Ромашка, нужен насос для котельной"
-
-Менеджер свяжется с вами в течение рабочего дня! 📧
-        """
+        # Очищаем состояние FSM (как в callback обработчике)
+        await state.clear()
         
-        # Возвращаемся к основной клавиатуре
-        keyboard = get_main_reply_keyboard()
+        # Импортируем обработчик лидов для вызова того же метода
+        from src.application.telegram.handlers.lead_handlers import LeadHandlers
+        from src.application.telegram.services.lead_service import LeadService
+        from src.application.telegram.keyboards.lead_keyboards import get_contact_manager_keyboard
         
-        await message.answer(contact_text, reply_markup=keyboard)
+        # Создаем экземпляр LeadHandlers
+        lead_service = LeadService()
+        lead_handlers = LeadHandlers(lead_service)
         
-        # Сохраняем ответ
-        await save_message(
-            session=session,
-            chat_id=message.chat.id,
-            role="assistant",
-            content=contact_text
-        )
+        # Создаем fake callback для вызова того же обработчика
+        fake_callback = type('obj', (object,), {
+            'message': type('obj', (object,), {
+                'edit_text': message.answer,
+                'chat': message.chat
+            }),
+            'from_user': message.from_user,
+            'answer': lambda: None  # Пустая функция для callback.answer()
+        })
+        
+        # Вызываем тот же обработчик что и callback
+        await lead_handlers.handle_contact_manager(fake_callback, state, session)
         
         # Логируем запрос на связь
         await hybrid_logger.business(
