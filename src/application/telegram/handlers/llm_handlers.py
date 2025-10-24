@@ -77,7 +77,7 @@ class LLMHandlers:
                 await message.answer("❌ Пожалуйста, отправьте текстовое сообщение.")
                 return
             
-            self._logger.info(f"Обработка LLM запроса от пользователя {message.from_user.id}: '{user_text[:50]}...'")
+            self._logger.debug(f"Обработка LLM запроса от пользователя {message.from_user.id}: '{user_text[:50]}...'")
             
             # Показываем индикатор печати
             await message.bot.send_chat_action(chat_id, "typing")
@@ -106,7 +106,7 @@ class LLMHandlers:
             )
             
             # Логируем результат
-            self._logger.info(f"Отправлен LLM ответ типа {query_type}, длина: {len(response_text)} символов")
+            self._logger.debug(f"Отправлен LLM ответ типа {query_type}, длина: {len(response_text)} символов")
             
             # Дополнительные действия в зависимости от типа запроса
             await self._handle_post_response_actions(

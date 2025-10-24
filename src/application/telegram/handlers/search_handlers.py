@@ -269,14 +269,14 @@ class SearchHandlers:
             
             category = categories[category_index]
             
-            self._logger.info(f"Выбрана категория: '{category}' (индекс {category_index})")
+            self._logger.debug(f"Выбрана категория: '{category}' (индекс {category_index})")
             
             await state.set_state(SearchStates.waiting_for_search_query)
             await state.update_data(category=category)
             
             # Проверяем, что категория сохранилась в состоянии
             saved_data = await state.get_data()
-            self._logger.info(f"Сохранено в состоянии: {saved_data}")
+            self._logger.debug(f"Сохранено в состоянии: {saved_data}")
             
             response_text = (
                 f"🔍 <b>Поиск в категории:</b> {category}\n\n"
@@ -330,7 +330,7 @@ class SearchHandlers:
             state_data = await state.get_data()
             category = state_data.get("category")
             
-            self._logger.info(f"Обработка поискового запроса: query='{query}', category='{category}'")
+            self._logger.debug(f"Обработка поискового запроса: query='{query}', category='{category}'")
             
             # Выполняем поиск
             await self._perform_search(

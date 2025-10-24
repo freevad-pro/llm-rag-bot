@@ -255,7 +255,7 @@ class CatalogSearchService(BaseSearchService):
             query_lower = query.strip().lower()
             all_results = []
             
-            self._logger.info(f"Начинаем поиск: query='{query}', category='{category}', k={k}")
+            self._logger.debug(f"Начинаем поиск: query='{query}', category='{category}', k={k}")
             
             # Шаг 1: Точный поиск по артикулу (приоритет)
             exact_matches = await self._search_by_article_exact(collection, query_lower, category)
@@ -831,7 +831,7 @@ class CatalogSearchService(BaseSearchService):
         
         try:
             total_count = collection.count()
-            self._logger.info(f"Получение категорий из {total_count} товаров")
+            self._logger.debug(f"Получение категорий из {total_count} товаров")
             if total_count == 0:
                 self._logger.warning("Коллекция пуста")
                 return []
@@ -869,7 +869,7 @@ class CatalogSearchService(BaseSearchService):
                 self._logger.debug(f"Обработано {offset}/{total_count} товаров, найдено {len(categories)} категорий")
             
             result = sorted(list(categories))
-            self._logger.info(f"Найдено {len(result)} уникальных категорий из {total_count} товаров")
+            self._logger.debug(f"Найдено {len(result)} уникальных категорий из {total_count} товаров")
             
             return result
             

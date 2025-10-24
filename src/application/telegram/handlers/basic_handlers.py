@@ -232,7 +232,7 @@ async def handle_contact(message: Message, session: AsyncSession):
 @router.callback_query(F.data == "help")
 async def callback_help(callback_query, session: AsyncSession):
     """Обработчик callback для кнопки помощи"""
-    await hybrid_logger.info(f"🔘 Обработчик callback_help вызван для пользователя {callback_query.from_user.id}")
+    await hybrid_logger.debug(f"🔘 Обработчик callback_help вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer()
     
     # Вызываем обработчик help через имитацию команды
@@ -248,7 +248,7 @@ async def callback_help(callback_query, session: AsyncSession):
 @router.callback_query(F.data == "contact_manager")
 async def callback_contact(callback_query, session: AsyncSession):
     """Обработчик callback для кнопки связи с менеджером"""
-    await hybrid_logger.info(f"🔘 Обработчик callback_contact вызван для пользователя {callback_query.from_user.id}")
+    await hybrid_logger.debug(f"🔘 Обработчик callback_contact вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer("Переключаю на связь с менеджером...")
     
     # Вызываем обработчик contact
@@ -264,7 +264,7 @@ async def callback_contact(callback_query, session: AsyncSession):
 @router.callback_query(F.data == "main_menu")
 async def callback_main_menu(callback_query, session: AsyncSession):
     """Обработчик callback для кнопки Главное меню"""
-    await hybrid_logger.info(f"🔘 Обработчик callback_main_menu вызван для пользователя {callback_query.from_user.id}")
+    await hybrid_logger.debug(f"🔘 Обработчик callback_main_menu вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer("Возврат в главное меню...")
     
     # Вызываем обработчик start
@@ -281,7 +281,7 @@ async def callback_main_menu(callback_query, session: AsyncSession):
 @router.callback_query(F.data == "leave_contacts")
 async def callback_leave_contacts(callback_query, session: AsyncSession):
     """Обработчик callback для кнопки Оставить контакты"""
-    await hybrid_logger.info(f"🔘 Обработчик callback_leave_contacts вызван для пользователя {callback_query.from_user.id}")
+    await hybrid_logger.debug(f"🔘 Обработчик callback_leave_contacts вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer("Переход к форме контактов...")
     
     # Вызываем обработчик contact для создания заявки
