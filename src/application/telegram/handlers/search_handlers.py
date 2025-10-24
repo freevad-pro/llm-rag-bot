@@ -338,7 +338,8 @@ class SearchHandlers:
                 chat_id=message.chat.id,
                 query=query,
                 category=category,
-                message=message
+                message=message,
+                state=state
             )
             
             await state.clear()
@@ -376,7 +377,8 @@ class SearchHandlers:
                 chat_id=message.chat.id,
                 query=article,  # Ищем именно артикул, без добавления слова "артикул"
                 category=None,
-                message=message
+                message=message,
+                state=state
             )
             
             await state.clear()
@@ -390,13 +392,21 @@ class SearchHandlers:
         await callback.answer()
         
         try:
-            # Извлекаем параметры из callback_data: search_results_page:page|query|category
-            # Сначала убираем префикс "search_results_page:"
-            data_part = callback.data.split(":", 1)[1]  # Получаем "page|query|category"
-            parts = data_part.split("|", 2)
-            page = int(parts[0])
-            query = parts[1] if len(parts) > 1 else ""
-            category = parts[2] if len(parts) > 2 and parts[2] else None
+            # Извлекаем только номер страницы из callback_data: search_results_page:page
+            data_part = callback.data.split(":", 1)[1]  # Получаем "page"
+            page = int(data_part)
+            
+            # Получаем данные поиска из состояния FSM
+            state_data = await state.get_data()
+            query = state_data.get("last_search_query", "")
+            category = state_data.get("last_search_category")
+            
+            if not query:
+                await callback.message.edit_text(
+                    "❌ Данные поиска не найдены. Начните новый поиск.",
+                    reply_markup=SearchKeyboardBuilder.back_to_search_menu()
+                )
+                return
             
             # Выполняем поиск с пагинацией
             await self._perform_search(
@@ -406,7 +416,8 @@ class SearchHandlers:
                 category=category,
                 message=None,
                 current_page=page,
-                edit_message=callback.message  # Редактируем существующее сообщение
+                edit_message=callback.message,  # Редактируем существующее сообщение
+                state=state
             )
             
         except (ValueError, IndexError) as e:
@@ -521,7 +532,8 @@ class SearchHandlers:
         category: Optional[str] = None,
         message: Optional[Message] = None,
         current_page: int = 0,
-        edit_message: Optional[Message] = None
+        edit_message: Optional[Message] = None,
+        state: Optional[FSMContext] = None
     ) -> None:
         """
         Выполняет поиск товаров и показывает результаты.
@@ -534,6 +546,13 @@ class SearchHandlers:
             message: Сообщение пользователя
         """
         try:
+            # Сохраняем данные поиска в состоянии FSM для пагинации
+            if state:
+                await state.update_data(
+                    last_search_query=query,
+                    last_search_category=category
+                )
+            
             # Показываем индикатор загрузки
             if message:
                 loading_msg = await message.answer("🔍 Ищу товары...")
