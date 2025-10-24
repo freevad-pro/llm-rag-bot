@@ -5,6 +5,7 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
@@ -230,10 +231,13 @@ async def handle_contact(message: Message, session: AsyncSession):
 
 # Обработчик callback запросов от inline кнопок
 @router.callback_query(F.data == "help")
-async def callback_help(callback_query, session: AsyncSession):
+async def callback_help(callback_query, session: AsyncSession, state: FSMContext):
     """Обработчик callback для кнопки помощи"""
     await hybrid_logger.debug(f"🔘 Обработчик callback_help вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer()
+    
+    # Очищаем состояние FSM при переходе к справке
+    await state.clear()
     
     # Вызываем обработчик help через имитацию команды
     fake_message = type('obj', (object,), {
@@ -246,10 +250,13 @@ async def callback_help(callback_query, session: AsyncSession):
 
 
 @router.callback_query(F.data == "contact_manager")
-async def callback_contact(callback_query, session: AsyncSession):
+async def callback_contact(callback_query, session: AsyncSession, state: FSMContext):
     """Обработчик callback для кнопки связи с менеджером"""
     await hybrid_logger.debug(f"🔘 Обработчик callback_contact вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer("Переключаю на связь с менеджером...")
+    
+    # Очищаем состояние FSM при переходе к контактам
+    await state.clear()
     
     # Вызываем обработчик contact
     fake_message = type('obj', (object,), {
@@ -262,10 +269,13 @@ async def callback_contact(callback_query, session: AsyncSession):
 
 
 @router.callback_query(F.data == "main_menu")
-async def callback_main_menu(callback_query, session: AsyncSession):
+async def callback_main_menu(callback_query, session: AsyncSession, state: FSMContext):
     """Обработчик callback для кнопки Главное меню"""
     await hybrid_logger.debug(f"🔘 Обработчик callback_main_menu вызван для пользователя {callback_query.from_user.id}")
     await callback_query.answer("Возврат в главное меню...")
+    
+    # Очищаем состояние FSM при возврате в главное меню
+    await state.clear()
     
     # Вызываем обработчик start
     fake_message = type('obj', (object,), {

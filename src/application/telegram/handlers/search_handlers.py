@@ -55,6 +55,43 @@ class SearchHandlers:
         """Обёртка для сохранения сообщения ассистента"""
         await message_service.save_message(session, chat_id, "assistant", content)
     
+    def _is_command_or_question(self, text: str) -> bool:
+        """
+        Определяет, является ли текст командой или вопросом, а не поисковым запросом.
+        
+        Args:
+            text: Текст для анализа
+            
+        Returns:
+            True если это команда или вопрос
+        """
+        text_lower = text.lower().strip()
+        
+        # Команды
+        if text_lower.startswith('/'):
+            return True
+        
+        # Вопросы (начинаются с вопросительных слов)
+        question_words = [
+            'что', 'как', 'где', 'когда', 'почему', 'зачем', 'кто', 'какой', 'какая', 'какие',
+            'сколько', 'можно ли', 'есть ли', 'как работает', 'как использовать',
+            'помоги', 'объясни', 'расскажи', 'покажи'
+        ]
+        
+        for word in question_words:
+            if text_lower.startswith(word):
+                return True
+        
+        # Короткие тексты (менее 3 символов) - скорее всего команды
+        if len(text_lower) < 3:
+            return True
+        
+        # Тексты с вопросительными знаками
+        if '?' in text:
+            return True
+        
+        return False
+    
     def _register_handlers(self) -> None:
         """Регистрирует все обработчики поиска."""
         
@@ -318,6 +355,15 @@ class SearchHandlers:
                 await message.answer("❌ Пожалуйста, введите поисковый запрос.")
                 return
             
+            # Проверяем, не является ли это командой или вопросом, а не поисковым запросом
+            if self._is_command_or_question(query):
+                # Очищаем состояние и передаем в LLM обработчик
+                await state.clear()
+                from ..handlers.llm_handlers import create_llm_handlers
+                llm_handlers = create_llm_handlers()
+                await llm_handlers.handle_text_message(message, session, state)
+                return
+            
             # Сохраняем сообщение пользователя
             await self.save_user_message(
                 session,
@@ -342,7 +388,8 @@ class SearchHandlers:
                 state=state
             )
             
-            await state.clear()
+            # НЕ очищаем состояние - данные нужны для пагинации
+            # await state.clear()
             
         except Exception as e:
             self._logger.error(f"Ошибка обработки поискового запроса: {e}", exc_info=True)
@@ -381,7 +428,8 @@ class SearchHandlers:
                 state=state
             )
             
-            await state.clear()
+            # НЕ очищаем состояние - данные нужны для пагинации
+            # await state.clear()
             
         except Exception as e:
             self._logger.error(f"Ошибка поиска по артикулу: {e}", exc_info=True)
@@ -403,8 +451,10 @@ class SearchHandlers:
             
             if not query:
                 await callback.message.edit_text(
-                    "❌ Данные поиска не найдены. Начните новый поиск.",
-                    reply_markup=SearchKeyboardBuilder.back_to_search_menu()
+                    "🔍 <b>Поиск завершен</b>\n\n"
+                    "Данные поиска не найдены. Начните новый поиск товаров.",
+                    reply_markup=SearchKeyboardBuilder.back_to_search_menu(),
+                    parse_mode="HTML"
                 )
                 return
             
@@ -423,8 +473,10 @@ class SearchHandlers:
         except (ValueError, IndexError) as e:
             self._logger.error(f"Ошибка обработки пагинации результатов: {e}")
             await callback.message.edit_text(
-                "❌ Ошибка загрузки страницы результатов.",
-                reply_markup=SearchKeyboardBuilder.back_to_search_menu()
+                "❌ <b>Ошибка загрузки страницы</b>\n\n"
+                "Произошла ошибка при загрузке результатов поиска. Попробуйте начать новый поиск.",
+                reply_markup=SearchKeyboardBuilder.back_to_search_menu(),
+                parse_mode="HTML"
             )
     
     async def callback_product_details(self, callback: CallbackQuery, state: FSMContext) -> None:
