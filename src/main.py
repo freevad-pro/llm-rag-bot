@@ -36,7 +36,7 @@ from src.application.web.routes.company_info import router as company_info_route
 from src.application.web.routes.database import router as database_router
 from src.application.web.routes.system_settings import router as system_settings_router
 from src.application.web.routes.usage_statistics import router as usage_statistics_router
-from src.application.web.routes.leads import router as leads_router
+from src.domain.services.prompt_management import PromptManagementService
 
 
 async def create_default_admin():
@@ -83,6 +83,22 @@ async def create_default_admin():
         await hybrid_logger.error(f"Ошибка создания администратора по умолчанию: {e}")
 
 
+async def initialize_default_prompts():
+    """
+    Инициализирует промпты по умолчанию при первом запуске приложения.
+    Выполняется только если в системе нет промптов.
+    """
+    try:
+        prompt_service = PromptManagementService()
+        async for session in get_session():
+            await prompt_service.initialize_default_prompts(session)
+            await hybrid_logger.info("Промпты по умолчанию инициализированы")
+            return
+            
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка инициализации промптов по умолчанию: {e}")
+
+
 class TelegramCSPMiddleware(BaseHTTPMiddleware):
     """Middleware для настройки CSP headers для работы с Telegram Login Widget"""
     
@@ -120,6 +136,9 @@ async def lifespan(app: FastAPI):
         
         # Создание администратора по умолчанию (если не существует)
         await create_default_admin()
+        
+        # Инициализация промптов по умолчанию (если их нет)
+        await initialize_default_prompts()
         
         # Запуск Telegram бота если токен настроен И бот не отключен
         if settings.bot_token and not settings.disable_telegram_bot:
