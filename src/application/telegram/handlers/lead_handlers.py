@@ -448,6 +448,10 @@ class LeadHandlers:
             elif current_state == LeadStates.waiting_for_question.state:
                 await self._show_confirmation(callback.message, state)
             
+            # Обработка быстрого контакта
+            elif current_state == LeadStates.quick_contact_question.state:
+                await self._process_quick_contact_skip(callback, state, session)
+            
             await callback.answer()
             
         except Exception as e:
@@ -808,6 +812,64 @@ class LeadHandlers:
             reply_markup=ReplyKeyboardRemove()
         )
     
+    async def _process_quick_contact_skip(
+        self, 
+        callback: CallbackQuery, 
+        state: FSMContext,
+        session: AsyncSession
+    ) -> None:
+        """Обработка пропуска вопроса в быстром контакте"""
+        try:
+            data = await state.get_data()
+            
+            # Получаем user_id
+            user_query = select(User).where(User.chat_id == callback.message.chat.id)
+            result = await session.execute(user_query)
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                await callback.answer("❌ Ошибка: пользователь не найден")
+                return
+            
+            # Автоматически добавляем Telegram username если есть
+            telegram_contact = None
+            if callback.from_user.username:
+                telegram_contact = f"@{callback.from_user.username}"
+            
+            # Создаем лид без вопроса
+            lead_data = LeadCreateRequest(
+                name=data['name'],
+                phone=data.get('phone'),
+                telegram=telegram_contact,
+                question=None,  # Пропускаем вопрос
+                auto_created=False
+            )
+            
+            lead = await self.lead_service.create_lead(session, user.id, lead_data)
+            
+            await callback.message.edit_text(
+                "✅ <b>Заявка отправлена!</b>\n\n"
+                "📞 Менеджер свяжется с вами в ближайшее время.\n"
+                f"📋 Номер заявки: <code>{lead.id}</code>\n\n"
+                "Спасибо за обращение! 🙏",
+                reply_markup=None
+            )
+            
+            # Уведомляем менеджеров
+            await self._notify_managers(session, lead, callback.message.chat.id)
+            
+            await state.clear()
+            await callback.answer("Заявка отправлена!")
+            
+        except Exception as e:
+            await hybrid_logger.error(f"Ошибка в _process_quick_contact_skip: {e}")
+            await callback.answer("❌ Ошибка при создании заявки")
+            await callback.message.edit_text(
+                "❌ Произошла ошибка при отправке заявки.\n"
+                "Попробуйте позже или свяжитесь с нами другим способом.",
+                reply_markup=None
+            )
+
     async def _notify_managers(self, session: AsyncSession, lead, chat_id: int) -> None:
         """Уведомление менеджеров о новом лиде"""
         try:

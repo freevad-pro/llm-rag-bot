@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.infrastructure.logging.hybrid_logger import hybrid_logger
 from src.application.telegram.services.user_service import ensure_user_exists
 from src.application.telegram.services.message_service import save_message
+from src.application.telegram.keyboards.lead_keyboards import (
+    get_main_reply_keyboard, 
+    get_menu_reply_keyboard
+)
 
 
 router = Router()
@@ -60,9 +64,8 @@ async def handle_start(message: Message, session: AsyncSession):
 Просто напишите, что вас интересует! 🔍
         """
         
-        # Inline клавиатура с быстрыми действиями
-        from src.application.telegram.keyboards.lead_keyboards import get_main_menu_keyboard
-        keyboard = get_main_menu_keyboard()
+        # Reply клавиатура с кнопкой Меню
+        keyboard = get_main_reply_keyboard()
         
         # Отправляем ответ
         sent_message = await message.answer(
@@ -303,3 +306,293 @@ async def callback_leave_contacts(callback_query, session: AsyncSession):
     })
     
     await handle_contact(fake_message, session)
+
+
+# Обработчики для Reply Keyboard кнопок
+@router.message(F.text == "📋 Меню")
+async def handle_menu_button(message: Message, session: AsyncSession):
+    """Обработчик кнопки Меню"""
+    try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
+        # Сохраняем сообщение
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="user",
+            content=message.text
+        )
+        
+        menu_text = """
+<b>📋 Главное меню</b>
+
+Выберите нужное действие:
+        """
+        
+        # Показываем клавиатуру с опциями меню
+        keyboard = get_menu_reply_keyboard()
+        
+        await message.answer(menu_text, reply_markup=keyboard)
+        
+        # Сохраняем ответ
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="assistant",
+            content=menu_text
+        )
+        
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка в handle_menu_button: {e}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+
+
+@router.message(F.text == "🔍 Поиск товаров")
+async def handle_search_button(message: Message, session: AsyncSession):
+    """Обработчик кнопки Поиск товаров"""
+    try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
+        # Сохраняем сообщение
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="user",
+            content=message.text
+        )
+        
+        search_text = """
+<b>🔍 Поиск товаров</b>
+
+Опишите, что вы ищете:
+• "Нужен насос для воды"
+• "Болты М12 оцинкованные" 
+• "Электродвигатель 3 кВт"
+
+Просто напишите ваш запрос, и я найду подходящие товары! 🚀
+        """
+        
+        # Возвращаемся к основной клавиатуре
+        keyboard = get_main_reply_keyboard()
+        
+        await message.answer(search_text, reply_markup=keyboard)
+        
+        # Сохраняем ответ
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="assistant",
+            content=search_text
+        )
+        
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка в handle_search_button: {e}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+
+
+@router.message(F.text == "📞 Связаться с менеджером")
+async def handle_contact_button(message: Message, session: AsyncSession):
+    """Обработчик кнопки Связаться с менеджером"""
+    try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
+        # Сохраняем сообщение
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="user",
+            content=message.text
+        )
+        
+        contact_text = """
+<b>📞 Связь с менеджером</b>
+
+Для персональной консультации с нашим менеджером, пожалуйста, оставьте ваши контактные данные:
+
+<b>Обязательные поля:</b>
+• Ваше имя
+• Телефон ИЛИ email
+
+<b>Дополнительно:</b>
+• Название компании
+• Ваш вопрос
+
+Просто напишите сообщение в формате:
+"Иван Петров, +7(999)123-45-67, ООО Ромашка, нужен насос для котельной"
+
+Менеджер свяжется с вами в течение рабочего дня! 📧
+        """
+        
+        # Возвращаемся к основной клавиатуре
+        keyboard = get_main_reply_keyboard()
+        
+        await message.answer(contact_text, reply_markup=keyboard)
+        
+        # Сохраняем ответ
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="assistant",
+            content=contact_text
+        )
+        
+        # Логируем запрос на связь
+        await hybrid_logger.business(
+            "Запрос связи с менеджером через кнопку",
+            {"chat_id": message.chat.id, "username": message.from_user.username}
+        )
+        
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка в handle_contact_button: {e}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+
+
+@router.message(F.text == "❓ Помощь")
+async def handle_help_button(message: Message, session: AsyncSession):
+    """Обработчик кнопки Помощь"""
+    try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
+        # Сохраняем сообщение
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="user",
+            content=message.text
+        )
+        
+        help_text = """
+<b>📖 Справка по использованию бота</b>
+
+<b>🔍 Поиск товаров:</b>
+Просто опишите, что ищете:
+• "Нужен насос для воды"
+• "Болты М12 оцинкованные"
+• "Электродвигатель 3 кВт"
+
+<b>💬 Консультации:</b>
+Задавайте вопросы о:
+• Технических характеристиках
+• Совместимости оборудования
+• Условиях поставки
+• Ценах и наличии
+
+<b>📞 Связь с менеджером:</b>
+Используйте кнопку "📞 Связаться с менеджером" в меню
+
+<b>⚡ Быстрые команды:</b>
+/start - начать работу
+/search - поиск товаров
+/categories - категории товаров
+/help - эта справка
+/contact - связаться с менеджером
+
+Я работаю 24/7 и отвечу в течение нескольких секунд! 🚀
+        """
+        
+        # Возвращаемся к основной клавиатуре
+        keyboard = get_main_reply_keyboard()
+        
+        await message.answer(help_text, reply_markup=keyboard)
+        
+        # Сохраняем ответ
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="assistant",
+            content=help_text
+        )
+        
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка в handle_help_button: {e}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+
+
+@router.message(F.text == "🏠 Главное меню")
+async def handle_main_menu_button(message: Message, session: AsyncSession):
+    """Обработчик кнопки Главное меню"""
+    try:
+        # Создаем или получаем пользователя
+        await ensure_user_exists(
+            session=session,
+            chat_id=message.chat.id,
+            telegram_user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        
+        # Сохраняем сообщение
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="user",
+            content=message.text
+        )
+        
+        welcome_text = f"""
+👋 <b>Добро пожаловать!</b>
+
+Я - AI-ассистент для консультации по каталогу товаров и услуг.
+
+<b>Что я умею:</b>
+• Поиск товаров по описанию
+• Консультации по услугам компании  
+• Помощь в выборе оборудования
+• Связь с менеджерами
+
+<b>Доступные команды:</b>
+/help - справка по использованию
+/contact - связаться с менеджером
+
+Просто напишите, что вас интересует! 🔍
+        """
+        
+        # Возвращаемся к основной клавиатуре
+        keyboard = get_main_reply_keyboard()
+        
+        await message.answer(welcome_text, reply_markup=keyboard)
+        
+        # Сохраняем ответ
+        await save_message(
+            session=session,
+            chat_id=message.chat.id,
+            role="assistant",
+            content=welcome_text
+        )
+        
+    except Exception as e:
+        await hybrid_logger.error(f"Ошибка в handle_main_menu_button: {e}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")

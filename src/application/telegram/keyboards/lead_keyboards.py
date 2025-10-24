@@ -154,3 +154,34 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="❓ Помощь", callback_data="help")
         ]
     ])
+
+
+def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
+    """Основная Reply клавиатура с кнопкой Меню"""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📋 Меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="Выберите действие из меню или напишите вопрос..."
+    )
+
+
+def get_menu_reply_keyboard() -> ReplyKeyboardMarkup:
+    """Reply клавиатура с опциями меню"""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🔍 Поиск товаров"),
+                KeyboardButton(text="📞 Связаться с менеджером")
+            ],
+            [
+                KeyboardButton(text="❓ Помощь"),
+                KeyboardButton(text="🏠 Главное меню")
+            ]
+        ],
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="Выберите действие..."
+    )
