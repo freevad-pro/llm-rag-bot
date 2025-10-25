@@ -456,7 +456,8 @@ async def debug_config():
 @admin_router.get("/classification-settings", response_class=HTMLResponse)
 async def classification_settings_page(
     request: Request,
-    current_user: AdminUser = Depends(require_admin_user)
+    current_user: AdminUser = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_session)
 ):
     """
     Страница настроек классификации запросов.
@@ -468,10 +469,15 @@ async def classification_settings_page(
             detail="Недостаточно прав для доступа к настройкам классификации"
         )
     
+    # Получаем все настройки классификации
+    from src.infrastructure.services.classification_settings_service import classification_settings_service
+    all_settings = await classification_settings_service.get_settings_history(db, limit=50)
+    
     context = {
         "request": request,
         "current_user": current_user,
-        "page_title": "Настройки классификации"
+        "page_title": "Настройки классификации",
+        "all_settings": all_settings
     }
     
     return templates.TemplateResponse("classification_settings.html", context)

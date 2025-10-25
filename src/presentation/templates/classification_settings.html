@@ -3,8 +3,21 @@
 {% block title %}Настройки классификации{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">Настройки классификации запросов</h1>
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">Настройки классификации запросов</h1>
+            </div>
+        </div>
+
+        <div class="container mt-4">
 
     <!-- Сообщения об успехе/ошибке -->
     {% if request.session.get("classification_success") %}
@@ -116,6 +129,8 @@
                 </div>
             </div>
         {% endfor %}
+    </div>
+        </div>
     </div>
 </div>
 {% endblock %}

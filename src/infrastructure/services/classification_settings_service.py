@@ -253,6 +253,43 @@ class ClassificationSettingsService:
         
         self._logger.info(f"Дефолтные настройки классификации созданы (ID: {new_settings.id})")
         return new_settings
+    
+    async def activate_settings(self, session: AsyncSession, settings_id: int) -> bool:
+        """
+        Активирует указанные настройки и деактивирует все остальные.
+        
+        Args:
+            session: Сессия базы данных
+            settings_id: ID настроек для активации
+            
+        Returns:
+            True если активация прошла успешно
+        """
+        try:
+            # Деактивируем все настройки
+            await session.execute(
+                update(ClassificationSettings).values(is_active=False)
+            )
+            
+            # Активируем указанные настройки
+            result = await session.execute(
+                update(ClassificationSettings)
+                .where(ClassificationSettings.id == settings_id)
+                .values(is_active=True)
+            )
+            
+            await session.commit()
+            
+            # Очищаем кеш
+            self.clear_cache()
+            
+            self._logger.info(f"Настройки классификации {settings_id} активированы")
+            return result.rowcount > 0
+            
+        except Exception as e:
+            await session.rollback()
+            self._logger.error(f"Ошибка активации настроек {settings_id}: {e}")
+            return False
 
 
 # Глобальный экземпляр сервиса

@@ -20,13 +20,13 @@ router = APIRouter(prefix="/admin", tags=["Classification Settings"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/classification-settings", response_class=HTMLResponse)
-async def get_classification_settings(
+@router.get("/classification-settings/api", response_class=HTMLResponse)
+async def get_classification_settings_api(
     db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
-    Получает текущие настройки классификации.
+    API endpoint для получения текущих настроек классификации.
     
     Returns:
         Словарь с настройками классификации
@@ -267,5 +267,32 @@ async def initialize_classification_settings(
     except Exception as e:
         logger.error(f"Ошибка при инициализации настроек классификации: {e}")
         request.session["classification_error"] = "Ошибка инициализации настроек классификации"
+    
+    return RedirectResponse(url="/admin/classification-settings", status_code=status.HTTP_302_FOUND)
+
+
+@router.post("/classification-settings/{settings_id}/activate", response_class=RedirectResponse, status_code=status.HTTP_302_FOUND)
+async def activate_classification_settings(
+    settings_id: int,
+    request: Request,
+    current_user: Optional[AdminUser] = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Активирует указанные настройки классификации."""
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Необходима авторизация")
+    
+    if not current_user.can_edit_prompts():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+
+    try:
+        success = await classification_settings_service.activate_settings(session, settings_id)
+        if success:
+            request.session["classification_success"] = f"Настройки классификации {settings_id} активированы"
+        else:
+            request.session["classification_error"] = f"Настройки классификации {settings_id} не найдены"
+    except Exception as e:
+        logger.error(f"Ошибка при активации настроек классификации {settings_id}: {e}")
+        request.session["classification_error"] = f"Ошибка активации настроек: {e}"
     
     return RedirectResponse(url="/admin/classification-settings", status_code=status.HTTP_302_FOUND)
