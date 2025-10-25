@@ -28,6 +28,7 @@ from src.application.web.routes.admin import admin_router
 from src.application.web.routes.prompts import prompts_router
 from src.application.web.routes.services import services_router
 from src.application.web.routes.categories import categories_router
+from src.application.web.routes.classification_settings import router as classification_settings_router
 from src.application.web.routes.logs import logs_router
 from src.application.web.routes.users import router as users_router
 from src.application.web.routes.catalog import catalog_router
@@ -221,6 +222,7 @@ app.include_router(admin_router)
 app.include_router(prompts_router)
 app.include_router(services_router)
 app.include_router(categories_router)
+app.include_router(classification_settings_router)
 app.include_router(logs_router)
 app.include_router(users_router)
 app.include_router(catalog_router)

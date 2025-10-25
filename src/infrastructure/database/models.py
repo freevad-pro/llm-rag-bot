@@ -381,3 +381,54 @@ class CatalogVersion(Base):
         Index("idx_catalog_versions_active", "status", "created_at"),
         {'extend_existing': True}  # Позволяет переопределить существующую таблицу
     )
+
+
+class ClassificationSettings(Base):
+    """
+    Настройки классификации запросов
+    Позволяет гибко настраивать ключевые слова и логику классификации
+    """
+    __tablename__ = "classification_settings"
+    
+    id = Column(BigInteger, primary_key=True)
+    
+    # Основные настройки
+    enable_fast_classification = Column(Boolean, default=True, nullable=False)
+    enable_llm_classification = Column(Boolean, default=True, nullable=False)
+    
+    # Ключевые слова для поиска товаров (JSON)
+    product_keywords = Column(Text, nullable=True)  # JSON массив
+    
+    # Ключевые слова для запросов на контакт (JSON)
+    contact_keywords = Column(Text, nullable=True)  # JSON массив
+    
+    # Ключевые слова для вопросов о компании (JSON)
+    company_keywords = Column(Text, nullable=True)  # JSON массив
+    
+    # Фразы о наличии товаров (JSON)
+    availability_phrases = Column(Text, nullable=True)  # JSON массив
+    
+    # Слова поиска (JSON)
+    search_words = Column(Text, nullable=True)  # JSON массив
+    
+    # Конкретные товары (JSON)
+    specific_products = Column(Text, nullable=True)  # JSON массив
+    
+    # Метаданные
+    description = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Пользователь, создавший настройки
+    created_by = Column(BigInteger, ForeignKey("admin_users.id"), nullable=False)
+    
+    # Связи
+    created_by_user = relationship("AdminUser", foreign_keys=[created_by])
+    
+    # Ограничения и индексы
+    __table_args__ = (
+        Index("idx_classification_settings_active", "is_active"),
+        Index("idx_classification_settings_created", "created_at"),
+        {'extend_existing': True}
+    )

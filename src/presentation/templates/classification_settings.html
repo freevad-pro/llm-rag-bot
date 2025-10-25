@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки классификации{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Настройки классификации запросов</h1>
+
+    <!-- Сообщения об успехе/ошибке -->
+    {% if request.session.get("classification_success") %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ request.session.pop("classification_success") }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endif %}
+    
+    {% if request.session.get("classification_info") %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {{ request.session.pop("classification_info") }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endif %}
+    
+    {% if request.session.get("classification_error") %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ request.session.pop("classification_error") }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endif %}
+
+    <!-- Кнопка инициализации дефолтных настроек -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Инициализация</h4>
+        </div>
+        <div class="card-body">
+            <p class="card-text">Если настройки классификации еще не созданы, вы можете инициализировать их значениями по умолчанию.</p>
+            <form method="post" action="/admin/classification-settings/initialize" class="d-inline">
+                <button type="submit" class="btn btn-primary" 
+                        onclick="return confirm('Вы уверены, что хотите инициализировать дефолтные настройки классификации?')">
+                    <i class="bi bi-gear"></i> Инициализировать дефолтные настройки
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Создать новые настройки</h4>
+        </div>
+        <div class="card-body">
+            <form hx-post="/admin/classification-settings/create" hx-target="#settings-list" hx-swap="beforeend" hx-on--after-request="this.reset()">
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="enable_fast_classification" name="enable_fast_classification" checked>
+                    <label class="form-check-label" for="enable_fast_classification">Включить быструю классификацию (по ключевым словам)</label>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="enable_llm_classification" name="enable_llm_classification" checked>
+                    <label class="form-check-label" for="enable_llm_classification">Включить LLM классификацию</label>
+                </div>
+                <div class="mb-3">
+                    <label for="specific_products_str" class="form-label">Конкретные товары (через запятую)</label>
+                    <input type="text" class="form-control" id="specific_products_str" name="specific_products_str" value="сверло,керн,болт,винт,гайка,шайба,подшипник,фильтр,масло,ремень,насос,двигатель,компрессор,клапан,шланг,кабель">
+                </div>
+                <div class="mb-3">
+                    <label for="product_keywords_str" class="form-label">Общие слова для товаров (через запятую)</label>
+                    <input type="text" class="form-control" id="product_keywords_str" name="product_keywords_str" value="товар,оборудование,запчасть,деталь,артикул,модель">
+                </div>
+                <div class="mb-3">
+                    <label for="availability_phrases_str" class="form-label">Фразы о наличии товаров (через запятую)</label>
+                    <input type="text" class="form-control" id="availability_phrases_str" name="availability_phrases_str" value="есть ли у вас,продаете ли,найдется ли,имеется ли,у вас есть,в наличии,есть в наличии,можно ли купить,можно ли заказать">
+                </div>
+                <div class="mb-3">
+                    <label for="search_words_str" class="form-label">Слова поиска (через запятую)</label>
+                    <input type="text" class="form-control" id="search_words_str" name="search_words_str" value="найти,искать,нужен,требуется">
+                </div>
+                <div class="mb-3">
+                    <label for="contact_keywords_str" class="form-label">Ключевые слова для контакта (через запятую)</label>
+                    <input type="text" class="form-control" id="contact_keywords_str" name="contact_keywords_str" value="менеджер,связаться,позвонить,заказать,купить,цена,консультация,помощь менеджера">
+                </div>
+                <div class="mb-3">
+                    <label for="company_keywords_str" class="form-label">Ключевые слова для компании (через запятую)</label>
+                    <input type="text" class="form-control" id="company_keywords_str" name="company_keywords_str" value="компания,о вас,адрес,контакты,история">
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">Описание</label>
+                    <input type="text" class="form-control" id="description" name="description">
+                </div>
+                <button type="submit" class="btn btn-primary">Создать настройки</button>
+            </form>
+        </div>
+    </div>
+
+    <h2 class="mb-3">Существующие настройки</h2>
+    <div class="list-group" id="settings-list">
+        {% for settings_item in all_settings %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>ID: {{ settings_item.id }}</strong>
+                    {% if settings_item.is_active %}
+                        <span class="badge bg-success ms-2">Активно</span>
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">Неактивно</span>
+                    {% endif %}
+                    <p class="mb-1">{{ settings_item.description or "Без описания" }}</p>
+                    <small class="text-muted">Создано: {{ settings_item.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                </div>
+                <div>
+                    {% if not settings_item.is_active %}
+                        <button hx-post="/admin/classification-settings/{{ settings_item.id }}/activate"
+                                hx-confirm="Вы уверены, что хотите активировать эти настройки? Все остальные будут деактивированы."
+                                hx-target="#settings-list" hx-swap="outerHTML"
+                                class="btn btn-success btn-sm me-2">Активировать</button>
+                    {% endif %}
+                    <a href="/admin/classification-settings/{{ settings_item.id }}/edit" class="btn btn-info btn-sm">Редактировать</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

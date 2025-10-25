@@ -451,3 +451,27 @@ async def debug_config():
         "secret_key_set": bool(settings.secret_key),
         "debug": settings.debug,
     }
+
+
+@admin_router.get("/classification-settings", response_class=HTMLResponse)
+async def classification_settings_page(
+    request: Request,
+    current_user: AdminUser = Depends(require_admin_user)
+):
+    """
+    Страница настроек классификации запросов.
+    Доступна только пользователям с правами редактирования промптов.
+    """
+    if not current_user.can_edit_prompts():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав для доступа к настройкам классификации"
+        )
+    
+    context = {
+        "request": request,
+        "current_user": current_user,
+        "page_title": "Настройки классификации"
+    }
+    
+    return templates.TemplateResponse("classification_settings.html", context)
