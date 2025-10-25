@@ -39,7 +39,20 @@ async def classify_user_query(
     logger = logging.getLogger(__name__)
     
     try:
-        # Используем LLM для классификации
+        # Сначала проверяем быстрые ключевые слова
+        if await is_contact_request(user_query):
+            logger.debug(f"Запрос '{user_query[:50]}...' быстро классифицирован как CONTACT")
+            return QueryType.CONTACT
+            
+        if await is_product_search(user_query):
+            logger.debug(f"Запрос '{user_query[:50]}...' быстро классифицирован как PRODUCT")
+            return QueryType.PRODUCT
+            
+        if await is_company_info_request(user_query):
+            logger.debug(f"Запрос '{user_query[:50]}...' быстро классифицирован как COMPANY_INFO")
+            return QueryType.COMPANY_INFO
+        
+        # Если быстрая проверка не сработала, используем LLM
         classification_result = await llm_service.classify_user_query(
             user_query, 
             session
@@ -48,7 +61,7 @@ async def classify_user_query(
         # Преобразуем результат в enum
         try:
             query_type = QueryType(classification_result)
-            logger.debug(f"Запрос '{user_query[:50]}...' классифицирован как {query_type.value}")
+            logger.debug(f"Запрос '{user_query[:50]}...' LLM классифицирован как {query_type.value}")
             return query_type
             
         except ValueError:
@@ -110,7 +123,11 @@ async def is_product_search(user_query: str) -> bool:
         "подшипник", "bearing",
         "фильтр", "filter",
         "масло", "oil",
-        "ремень", "belt"
+        "ремень", "belt",
+        "сверло", "drill", "bit",  # Добавляем сверла
+        "керн", "core",  # Добавляем керн
+        "есть ли у вас", "продаете ли", "найдется ли", "имеется ли",  # Вопросы о наличии
+        "у вас есть", "в наличии", "есть в наличии"
     ]
     
     query_lower = user_query.lower()
