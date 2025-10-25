@@ -2,22 +2,28 @@
 API endpoints для управления настройками классификации запросов.
 Позволяет администраторам гибко настраивать ключевые слова и логику классификации.
 """
-from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...infrastructure.database.connection import get_db
-from ...infrastructure.services.classification_settings_service import classification_settings_service
-from ...application.web.dependencies import get_current_admin_user
-from ...infrastructure.database.models import AdminUser
+from src.infrastructure.database.connection import get_session
+from src.infrastructure.services.classification_settings_service import classification_settings_service
+from src.application.web.dependencies import get_current_admin_user
+from src.application.web.routes.admin import require_admin_user_with_redirect
+from src.infrastructure.database.models import AdminUser
+from src.presentation.template_config import templates
 
 
 router = APIRouter(prefix="/api/v1/classification", tags=["Classification Settings"])
 
+logger = logging.getLogger(__name__)
+
 
 @router.get("/settings")
 async def get_classification_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
@@ -42,7 +48,7 @@ async def get_classification_settings(
 @router.post("/settings")
 async def update_classification_settings(
     settings_data: Dict[str, Any],
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
@@ -96,7 +102,7 @@ async def update_classification_settings(
 @router.get("/settings/history")
 async def get_classification_settings_history(
     limit: int = 10,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
@@ -123,7 +129,7 @@ async def get_classification_settings_history(
 
 @router.post("/settings/reset")
 async def reset_classification_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
