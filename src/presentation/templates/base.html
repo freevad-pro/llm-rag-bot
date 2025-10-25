@@ -57,13 +57,14 @@
                             Промпты
                         </a>
                     </li>
+                    {% endif %}
+                    
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/classification-settings">
                             <i class="bi bi-gear"></i>
                             Классификация
                         </a>
                     </li>
-                    {% endif %}
                     
                     {% if current_user.can_manage_services() %}
                     <li class="nav-item">
