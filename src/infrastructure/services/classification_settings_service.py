@@ -178,6 +178,49 @@ class ClassificationSettingsService:
         self._cache = None
         self._cache_timestamp = None
 
+    async def create_settings(
+        self,
+        session: AsyncSession,
+        enable_fast_classification: bool,
+        enable_llm_classification: bool,
+        product_keywords: List[str],
+        contact_keywords: List[str],
+        company_keywords: List[str],
+        availability_phrases: List[str],
+        search_words: List[str],
+        specific_products: List[str],
+        description: Optional[str],
+        created_by_admin_id: int,
+        is_active: bool = True
+    ) -> ClassificationSettings:
+        """Создает новые настройки классификации."""
+        import json
+        
+        new_settings = ClassificationSettings(
+            enable_fast_classification=enable_fast_classification,
+            enable_llm_classification=enable_llm_classification,
+            product_keywords=json.dumps(product_keywords),
+            contact_keywords=json.dumps(contact_keywords),
+            company_keywords=json.dumps(company_keywords),
+            availability_phrases=json.dumps(availability_phrases),
+            search_words=json.dumps(search_words),
+            specific_products=json.dumps(specific_products),
+            description=description,
+            is_active=is_active,
+            created_by=created_by_admin_id
+        )
+        
+        session.add(new_settings)
+        await session.commit()
+        await session.refresh(new_settings)
+        
+        # Сбрасываем кеш
+        self._cache = None
+        self._cache_timestamp = None
+        
+        self._logger.info(f"Созданы новые настройки классификации (ID: {new_settings.id}, Active: {new_settings.is_active})")
+        return new_settings
+
     async def initialize_default_settings(self, session: AsyncSession, admin_user_id: int = 1) -> ClassificationSettings:
         """Инициализирует дефолтные настройки классификации если их нет."""
         # Проверяем, есть ли уже активные настройки

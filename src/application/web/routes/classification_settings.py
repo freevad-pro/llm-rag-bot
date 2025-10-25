@@ -192,10 +192,13 @@ async def clear_classification_cache(
 @router.post("/classification-settings/initialize", response_class=RedirectResponse, status_code=status.HTTP_302_FOUND)
 async def initialize_classification_settings(
     request: Request,
-    current_user: AdminUser = Depends(require_admin_user_with_redirect),
+    current_user: Optional[AdminUser] = Depends(get_current_admin_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Инициализирует дефолтные настройки классификации (только если их нет)."""
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Необходима авторизация")
+    
     if not current_user.can_edit_prompts():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
 
