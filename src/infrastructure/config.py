@@ -3,9 +3,9 @@
 Перенаправляет импорты на основной config модуль.
 """
 
-# Перенаправляем все импорты на основной config модуль
-from ...config.settings import settings
-from ...config.database import engine, get_db
+# Используем абсолютные импорты вместо относительных
+from src.config.settings import settings
+from src.config.database import engine, get_db
 
 __all__ = [
     "settings",

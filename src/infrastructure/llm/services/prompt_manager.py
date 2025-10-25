@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
 
-from ...database.models import Prompt
+from src.infrastructure.database.models import Prompt
 
 
 class PromptManager:

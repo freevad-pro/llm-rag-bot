@@ -10,7 +10,7 @@ import openai
 from openai import AsyncOpenAI
 
 from .base import LLMProvider, LLMMessage, LLMResponse, LLMProviderError, LLMTimeoutError, LLMRateLimitError
-from ...utils.text_utils import safe_format
+from src.infrastructure.utils.text_utils import safe_format
 
 
 class OpenAIProvider(LLMProvider):
@@ -32,7 +32,7 @@ class OpenAIProvider(LLMProvider):
         if not self.api_key:
             raise ValueError("OpenAI API key не предоставлен в конфигурации")
         
-        from ...config.settings import settings
+        from src.config.settings import settings
         self.model = config.get("model", settings.openai_default_model)
         self.timeout = config.get("timeout", 30)
         

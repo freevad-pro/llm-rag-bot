@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..factory import llm_factory
 from ..providers import LLMMessage, LLMResponse, LLMError
 from .prompt_manager import prompt_manager
-from ...utils.text_utils import safe_format
-from ....domain.entities.product import SearchResult
+from src.infrastructure.utils.text_utils import safe_format
+from src.domain.entities.product import SearchResult
 
 
 class LLMService:

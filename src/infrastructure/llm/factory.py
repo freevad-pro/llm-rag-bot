@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from ..database.models import LLMSetting
 from .providers import LLMProvider, OpenAIProvider, YandexGPTProvider, LLMProviderError
-from ...config.settings import settings
+from src.config.settings import settings
 
 
 class LLMProviderFactory:

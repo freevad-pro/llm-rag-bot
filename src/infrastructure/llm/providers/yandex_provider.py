@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 import httpx
 
 from .base import LLMProvider, LLMMessage, LLMResponse, LLMProviderError, LLMTimeoutError, LLMRateLimitError
-from ...utils.text_utils import safe_format
+from src.infrastructure.utils.text_utils import safe_format
 
 
 class YandexGPTProvider(LLMProvider):
