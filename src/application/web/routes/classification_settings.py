@@ -15,12 +15,12 @@ from src.infrastructure.database.models import AdminUser
 from src.presentation.template_config import templates
 
 
-router = APIRouter(prefix="/api/v1/classification", tags=["Classification Settings"])
+router = APIRouter(prefix="/admin", tags=["Classification Settings"])
 
 logger = logging.getLogger(__name__)
 
 
-@router.get("/settings")
+@router.get("/classification-settings", response_class=HTMLResponse)
 async def get_classification_settings(
     db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
@@ -44,7 +44,7 @@ async def get_classification_settings(
         )
 
 
-@router.post("/settings")
+@router.post("/classification-settings/settings")
 async def update_classification_settings(
     settings_data: Dict[str, Any],
     db: AsyncSession = Depends(get_session),
@@ -98,7 +98,7 @@ async def update_classification_settings(
         )
 
 
-@router.get("/settings/history")
+@router.get("/classification-settings/settings/history")
 async def get_classification_settings_history(
     limit: int = 10,
     db: AsyncSession = Depends(get_session),
@@ -126,7 +126,7 @@ async def get_classification_settings_history(
         )
 
 
-@router.post("/settings/reset")
+@router.post("/classification-settings/settings/reset")
 async def reset_classification_settings(
     db: AsyncSession = Depends(get_session),
     current_user: AdminUser = Depends(get_current_admin_user)
@@ -166,7 +166,7 @@ async def reset_classification_settings(
         )
 
 
-@router.post("/settings/clear-cache")
+@router.post("/classification-settings/settings/clear-cache")
 async def clear_classification_cache(
     current_user: AdminUser = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
