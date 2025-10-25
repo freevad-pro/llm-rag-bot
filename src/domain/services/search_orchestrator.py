@@ -170,9 +170,13 @@ class SearchOrchestrator:
     ) -> Dict[str, Any]:
         """Обрабатывает запрос поиска товаров."""
         try:
+            # Извлекаем ключевые слова из запроса с помощью LLM для максимальной точности
+            search_query = await self._extract_search_query_with_llm(user_query, session)
+            self._logger.debug(f"Оригинальный запрос: '{user_query}' -> Поисковый запрос: '{search_query}'")
+            
             # Поиск в каталоге через Chroma
             search_results = await self.catalog_service.search_products(
-                query=user_query,
+                query=search_query,
                 k=10
             )
             
@@ -459,6 +463,123 @@ class SearchOrchestrator:
                 "metadata": {"error": str(e)},
                 "suggested_actions": ["search_products", "contact_manager"]
             }
+    
+    def _extract_product_keywords(self, user_query: str) -> str:
+        """
+        Извлекает ключевые слова для поиска товаров из пользовательского запроса.
+        Использует LLM для умного извлечения поисковых терминов.
+        
+        Args:
+            user_query: Оригинальный запрос пользователя
+            
+        Returns:
+            Очищенный поисковый запрос с ключевыми словами
+        """
+        try:
+            # Простая очистка для базовых случаев
+            query_lower = user_query.lower().strip()
+            
+            # Удаляем распространенные фразы о наличии
+            stop_phrases = [
+                "есть ли у вас", "do you have", "продаете ли", "do you sell",
+                "найдется ли", "can be found", "имеется ли", "is available",
+                "у вас есть", "you have", "в наличии", "in stock",
+                "есть в наличии", "available in stock", "можно ли купить", 
+                "can i buy", "можно ли заказать", "can i order",
+                "есть ли возможность", "is it possible", "реализуете ли", "do you supply",
+                "есть ли", "is there", "имеется", "available", "доступно", "accessible",
+                "можно найти", "can find", "можно получить", "can get",
+                "продается", "sold", "предлагается", "offered", "предлагаете", "do you offer"
+            ]
+            
+            cleaned_query = query_lower
+            for phrase in stop_phrases:
+                cleaned_query = cleaned_query.replace(phrase, "").strip()
+            
+            # Удаляем вопросительные слова в начале
+            question_words = ["ли", "как", "где", "когда", "что", "кто", "почему", "зачем"]
+            words = cleaned_query.split()
+            if words and words[0] in question_words:
+                words = words[1:]
+            
+            # Удаляем знаки препинания
+            cleaned_query = " ".join(words).strip("?.,!;:")
+            
+            # Если запрос стал слишком коротким, возвращаем оригинал
+            if len(cleaned_query) < 3:
+                return user_query.strip()
+            
+            return cleaned_query
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка извлечения ключевых слов: {e}")
+            return user_query.strip()
+    
+    async def _extract_search_query_with_llm(
+        self, 
+        user_query: str, 
+        session: AsyncSession
+    ) -> str:
+        """
+        Извлекает поисковый запрос с помощью LLM для максимальной точности.
+        
+        Args:
+            user_query: Оригинальный запрос пользователя
+            session: Сессия базы данных
+            
+        Returns:
+            Очищенный поисковый запрос
+        """
+        try:
+            extraction_prompt = f"""
+Ты помощник для извлечения ключевых слов поиска товаров из пользовательских запросов.
+
+Пользователь спрашивает: "{user_query}"
+
+Твоя задача: извлечь из этого запроса только ключевые слова для поиска товаров.
+Удали все служебные слова, фразы о наличии, вопросительные конструкции.
+
+Правила:
+1. Оставь только названия товаров, артикулы, характеристики
+2. Сохрани важные технические термины (размеры, модели, типы)
+3. Удали фразы типа "есть ли", "продаете ли", "можно ли купить"
+4. Удали вопросительные слова в начале
+5. Сохрани порядок слов если он важен
+
+Примеры:
+- "есть ли у вас сверло без керна?" → "сверло без керна"
+- "продаете ли болты м8?" → "болты м8" 
+- "нужен подшипник 6205" → "подшипник 6205"
+- "можно ли заказать фильтр масляный?" → "фильтр масляный"
+- "есть ли в наличии двигатель 1.5 квт?" → "двигатель 1.5 квт"
+
+Верни только ключевые слова без дополнительных объяснений:
+"""
+
+            llm_result = await llm_service.generate_contextual_response(
+                extraction_prompt,
+                conversation_context=[],
+                context_data={
+                    "action": "extract_search_keywords",
+                    "original_query": user_query
+                },
+                session=session
+            )
+            
+            extracted_query = llm_result["text"].strip()
+            
+            # Валидация результата
+            if len(extracted_query) < 2:
+                self._logger.warning(f"LLM вернул слишком короткий запрос: '{extracted_query}', используем простую очистку")
+                return self._extract_product_keywords(user_query)
+            
+            self._logger.debug(f"LLM извлек поисковый запрос: '{user_query}' -> '{extracted_query}'")
+            return extracted_query
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка LLM извлечения ключевых слов: {e}")
+            # Fallback на простую очистку
+            return self._extract_product_keywords(user_query)
 
 
 # Глобальный экземпляр оркестратора

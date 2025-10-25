@@ -36,7 +36,10 @@ DEFAULT_CLASSIFICATION_SETTINGS = {
         "у вас есть", "you have", "в наличии", "in stock",
         "есть в наличии", "available in stock", "можно ли купить", 
         "can I buy", "можно ли заказать", "can I order",
-        "есть ли возможность", "is it possible", "реализуете ли", "do you supply"
+        "есть ли возможность", "is it possible", "реализуете ли", "do you supply",
+        "есть ли", "is there", "имеется", "available", "доступно", "accessible",
+        "можно найти", "can find", "можно получить", "can get",
+        "продается", "sold", "предлагается", "offered", "предлагаете", "do you offer"
     ],
     
     # Слова поиска

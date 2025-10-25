@@ -139,6 +139,12 @@ async def is_product_search(user_query: str) -> bool:
     if has_availability_phrase and has_general_product_word:
         return True
     
+    # Проверяем фразы о наличии + конкретные товары (приоритет 2.5)
+    if has_availability_phrase:
+        for product in specific_products:
+            if product in query_lower:
+                return True
+    
     # Проверяем слова поиска (приоритет 3)
     if any(word in query_lower for word in search_words):
         return True
@@ -255,6 +261,12 @@ async def is_product_search_with_settings(user_query: str, settings: Dict[str, A
     
     if has_availability_phrase and has_general_product_word:
         return True
+    
+    # Проверяем фразы о наличии + конкретные товары (приоритет 2.5)
+    if has_availability_phrase:
+        for product in specific_products:
+            if product.lower() in query_lower:
+                return True
     
     # Проверяем слова поиска (приоритет 3)
     if any(word.lower() in query_lower for word in search_words):

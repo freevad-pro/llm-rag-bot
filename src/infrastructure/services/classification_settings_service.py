@@ -290,6 +290,82 @@ class ClassificationSettingsService:
             await session.rollback()
             self._logger.error(f"Ошибка активации настроек {settings_id}: {e}")
             return False
+    
+    async def update_existing_settings(
+        self,
+        session: AsyncSession,
+        settings_id: int,
+        enable_fast_classification: bool,
+        enable_llm_classification: bool,
+        product_keywords: List[str],
+        contact_keywords: List[str],
+        company_keywords: List[str],
+        availability_phrases: List[str],
+        search_words: List[str],
+        specific_products: List[str],
+        description: Optional[str] = None,
+        updated_by_admin_id: int = 1
+    ) -> bool:
+        """
+        Обновляет существующие настройки классификации.
+        
+        Args:
+            session: Сессия базы данных
+            settings_id: ID настроек для обновления
+            enable_fast_classification: Включить быструю классификацию
+            enable_llm_classification: Включить LLM классификацию
+            product_keywords: Ключевые слова для товаров
+            contact_keywords: Ключевые слова для контакта
+            company_keywords: Ключевые слова для компании
+            availability_phrases: Фразы о наличии товаров
+            search_words: Слова поиска
+            specific_products: Конкретные товары
+            description: Описание настроек
+            updated_by_admin_id: ID администратора, обновившего настройки
+            
+        Returns:
+            True если обновление прошло успешно
+        """
+        try:
+            # Проверяем существование настроек
+            query = select(ClassificationSettings).where(ClassificationSettings.id == settings_id)
+            result = await session.execute(query)
+            existing_settings = result.scalar_one_or_none()
+            
+            if not existing_settings:
+                self._logger.warning(f"Настройки классификации {settings_id} не найдены")
+                return False
+            
+            # Обновляем настройки
+            await session.execute(
+                update(ClassificationSettings)
+                .where(ClassificationSettings.id == settings_id)
+                .values(
+                    enable_fast_classification=enable_fast_classification,
+                    enable_llm_classification=enable_llm_classification,
+                    product_keywords=product_keywords,
+                    contact_keywords=contact_keywords,
+                    company_keywords=company_keywords,
+                    availability_phrases=availability_phrases,
+                    search_words=search_words,
+                    specific_products=specific_products,
+                    description=description or existing_settings.description,
+                    updated_at=datetime.now()
+                )
+            )
+            
+            await session.commit()
+            
+            # Очищаем кеш
+            self.clear_cache()
+            
+            self._logger.info(f"Настройки классификации {settings_id} обновлены администратором {updated_by_admin_id}")
+            return True
+            
+        except Exception as e:
+            await session.rollback()
+            self._logger.error(f"Ошибка обновления настроек {settings_id}: {e}")
+            return False
 
 
 # Глобальный экземпляр сервиса

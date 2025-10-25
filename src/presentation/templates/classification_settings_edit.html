@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование настроек классификации{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+    {% include "admin/partials/sidebar.html" %}
+    <div class="sidebar-overlay d-md-none" onclick="toggleSidebar()"></div>
+    
+    <div class="main-wrapper">
+        <div class="top-navbar d-flex justify-content-between flex-wrap align-items-center">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h2 mb-0">Редактирование настроек классификации</h1>
+            </div>
+            <div class="btn-toolbar">
+                <div class="btn-group">
+                    <a href="/admin/classification-settings" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i>
+                        <span class="d-none d-md-inline">Назад к списку</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mt-4">
+            <!-- Сообщения об успехе/ошибке -->
+            {% if request.session.get("classification_success") %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ request.session.pop("classification_success") }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endif %}
+            
+            {% if request.session.get("classification_error") %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ request.session.pop("classification_error") }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endif %}
+
+            <!-- Информация о настройках -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Информация о настройках</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>ID:</strong> {{ settings.id }}</p>
+                            <p><strong>Статус:</strong> 
+                                {% if settings.is_active %}
+                                    <span class="badge bg-success">Активно</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Неактивно</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Создано:</strong> {{ settings.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <p><strong>Описание:</strong> {{ settings.description or "Без описания" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Форма редактирования -->
+            <div class="card">
+                <div class="card-header">
+                    <h4>Редактировать настройки</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/classification-settings/{{ settings.id }}/update">
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="enable_fast_classification" 
+                                   name="enable_fast_classification" 
+                                   {% if settings.enable_fast_classification %}checked{% endif %}>
+                            <label class="form-check-label" for="enable_fast_classification">
+                                Включить быструю классификацию (по ключевым словам)
+                            </label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="enable_llm_classification" 
+                                   name="enable_llm_classification" 
+                                   {% if settings.enable_llm_classification %}checked{% endif %}>
+                            <label class="form-check-label" for="enable_llm_classification">
+                                Включить LLM классификацию
+                            </label>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание</label>
+                            <input type="text" class="form-control" id="description" name="description" 
+                                   value="{{ settings.description or '' }}" placeholder="Описание настроек">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="specific_products_str" class="form-label">Конкретные товары (через запятую)</label>
+                            <input type="text" class="form-control" id="specific_products_str" name="specific_products_str" 
+                                   value="{{ settings.specific_products | join(',') }}">
+                            <div class="form-text">Пример: сверло,керн,болт,винт,гайка</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="product_keywords_str" class="form-label">Общие слова для товаров (через запятую)</label>
+                            <input type="text" class="form-control" id="product_keywords_str" name="product_keywords_str" 
+                                   value="{{ settings.product_keywords | join(',') }}">
+                            <div class="form-text">Пример: товар,оборудование,запчасть,деталь</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="availability_phrases_str" class="form-label">Фразы о наличии товаров (через запятую)</label>
+                            <input type="text" class="form-control" id="availability_phrases_str" name="availability_phrases_str" 
+                                   value="{{ settings.availability_phrases | join(',') }}">
+                            <div class="form-text">Пример: есть ли у вас,продаете ли,в наличии</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="search_words_str" class="form-label">Слова поиска (через запятую)</label>
+                            <input type="text" class="form-control" id="search_words_str" name="search_words_str" 
+                                   value="{{ settings.search_words | join(',') }}">
+                            <div class="form-text">Пример: найти,искать,нужен,требуется</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="contact_keywords_str" class="form-label">Ключевые слова для контакта (через запятую)</label>
+                            <input type="text" class="form-control" id="contact_keywords_str" name="contact_keywords_str" 
+                                   value="{{ settings.contact_keywords | join(',') }}">
+                            <div class="form-text">Пример: менеджер,связаться,позвонить,заказать</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="company_keywords_str" class="form-label">Ключевые слова для компании (через запятую)</label>
+                            <input type="text" class="form-control" id="company_keywords_str" name="company_keywords_str" 
+                                   value="{{ settings.company_keywords | join(',') }}">
+                            <div class="form-text">Пример: компания,о вас,адрес,контакты</div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i>
+                                Сохранить изменения
+                            </button>
+                            <a href="/admin/classification-settings" class="btn btn-secondary">
+                                <i class="bi bi-x-lg"></i>
+                                Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
