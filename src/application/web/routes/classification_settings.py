@@ -324,7 +324,18 @@ async def edit_classification_settings_page(
         if not settings:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Настройки не найдены")
         
-        # Преобразуем настройки в словарь для шаблона
+        # Десериализуем JSON поля и преобразуем настройки в словарь для шаблона
+        import json
+        
+        def safe_json_loads(json_str):
+            """Безопасно загружает JSON строку или возвращает пустой список"""
+            if not json_str:
+                return []
+            try:
+                return json.loads(json_str)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        
         settings_data = {
             "id": settings.id,
             "description": settings.description,
@@ -332,12 +343,12 @@ async def edit_classification_settings_page(
             "created_at": settings.created_at,
             "enable_fast_classification": settings.enable_fast_classification,
             "enable_llm_classification": settings.enable_llm_classification,
-            "product_keywords": settings.product_keywords,
-            "contact_keywords": settings.contact_keywords,
-            "company_keywords": settings.company_keywords,
-            "availability_phrases": settings.availability_phrases,
-            "search_words": settings.search_words,
-            "specific_products": settings.specific_products,
+            "product_keywords": safe_json_loads(settings.product_keywords),
+            "contact_keywords": safe_json_loads(settings.contact_keywords),
+            "company_keywords": safe_json_loads(settings.company_keywords),
+            "availability_phrases": safe_json_loads(settings.availability_phrases),
+            "search_words": safe_json_loads(settings.search_words),
+            "specific_products": safe_json_loads(settings.specific_products),
         }
         
         context = {

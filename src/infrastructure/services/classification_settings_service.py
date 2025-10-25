@@ -199,12 +199,12 @@ class ClassificationSettingsService:
         new_settings = ClassificationSettings(
             enable_fast_classification=enable_fast_classification,
             enable_llm_classification=enable_llm_classification,
-            product_keywords=json.dumps(product_keywords),
-            contact_keywords=json.dumps(contact_keywords),
-            company_keywords=json.dumps(company_keywords),
-            availability_phrases=json.dumps(availability_phrases),
-            search_words=json.dumps(search_words),
-            specific_products=json.dumps(specific_products),
+            product_keywords=json.dumps(product_keywords, ensure_ascii=False),
+            contact_keywords=json.dumps(contact_keywords, ensure_ascii=False),
+            company_keywords=json.dumps(company_keywords, ensure_ascii=False),
+            availability_phrases=json.dumps(availability_phrases, ensure_ascii=False),
+            search_words=json.dumps(search_words, ensure_ascii=False),
+            specific_products=json.dumps(specific_products, ensure_ascii=False),
             description=description,
             is_active=is_active,
             created_by=created_by_admin_id
@@ -336,19 +336,19 @@ class ClassificationSettingsService:
                 self._logger.warning(f"Настройки классификации {settings_id} не найдены")
                 return False
             
-            # Обновляем настройки
+            # Обновляем настройки (сериализуем списки в JSON)
             await session.execute(
                 update(ClassificationSettings)
                 .where(ClassificationSettings.id == settings_id)
                 .values(
                     enable_fast_classification=enable_fast_classification,
                     enable_llm_classification=enable_llm_classification,
-                    product_keywords=product_keywords,
-                    contact_keywords=contact_keywords,
-                    company_keywords=company_keywords,
-                    availability_phrases=availability_phrases,
-                    search_words=search_words,
-                    specific_products=specific_products,
+                    product_keywords=json.dumps(product_keywords, ensure_ascii=False),
+                    contact_keywords=json.dumps(contact_keywords, ensure_ascii=False),
+                    company_keywords=json.dumps(company_keywords, ensure_ascii=False),
+                    availability_phrases=json.dumps(availability_phrases, ensure_ascii=False),
+                    search_words=json.dumps(search_words, ensure_ascii=False),
+                    specific_products=json.dumps(specific_products, ensure_ascii=False),
                     description=description or existing_settings.description,
                     updated_at=datetime.now()
                 )
