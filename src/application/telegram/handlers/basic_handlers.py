@@ -286,7 +286,7 @@ async def callback_main_menu(callback_query, session: AsyncSession, state: FSMCo
         'chat': callback_query.message.chat,
         'from_user': callback_query.from_user,
         'text': '/start',
-        'answer': callback_query.message.edit_text
+        'answer': callback_query.message.answer
     })
     
     await handle_start(fake_message, session)
@@ -303,7 +303,7 @@ async def callback_leave_contacts(callback_query, session: AsyncSession):
         'chat': callback_query.message.chat,
         'from_user': callback_query.from_user,
         'text': '/contact',
-        'answer': callback_query.message.edit_text
+        'answer': callback_query.message.answer
     })
     
     await handle_contact(fake_message, session)
