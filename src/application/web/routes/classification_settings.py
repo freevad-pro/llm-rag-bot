@@ -189,6 +189,62 @@ async def clear_classification_cache(
         )
 
 
+@router.post("/classification-settings/create", response_class=RedirectResponse, status_code=status.HTTP_302_FOUND)
+async def create_classification_settings(
+    request: Request,
+    current_user: Optional[AdminUser] = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_session),
+    enable_fast_classification: bool = Form(False),
+    enable_llm_classification: bool = Form(False),
+    product_keywords_str: str = Form(""),
+    contact_keywords_str: str = Form(""),
+    company_keywords_str: str = Form(""),
+    availability_phrases_str: str = Form(""),
+    search_words_str: str = Form(""),
+    specific_products_str: str = Form(""),
+    description: Optional[str] = Form(None)
+):
+    """Создает новые настройки классификации."""
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Необходима авторизация")
+    
+    if not current_user.can_edit_prompts():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+
+    try:
+        # Парсим строки в списки
+        product_keywords = [k.strip() for k in product_keywords_str.split(',') if k.strip()]
+        contact_keywords = [k.strip() for k in contact_keywords_str.split(',') if k.strip()]
+        company_keywords = [k.strip() for k in company_keywords_str.split(',') if k.strip()]
+        availability_phrases = [k.strip() for k in availability_phrases_str.split(',') if k.strip()]
+        search_words = [k.strip() for k in search_words_str.split(',') if k.strip()]
+        specific_products = [k.strip() for k in specific_products_str.split(',') if k.strip()]
+
+        # Создаем новые настройки
+        await classification_settings_service.create_settings(
+            session=session,
+            enable_fast_classification=enable_fast_classification,
+            enable_llm_classification=enable_llm_classification,
+            product_keywords=product_keywords,
+            contact_keywords=contact_keywords,
+            company_keywords=company_keywords,
+            availability_phrases=availability_phrases,
+            search_words=search_words,
+            specific_products=specific_products,
+            description=description,
+            created_by_admin_id=current_user.id,
+            is_active=False  # Новые настройки по умолчанию не активны
+        )
+        
+        request.session["classification_success"] = "Новые настройки классификации созданы"
+        
+    except Exception as e:
+        logger.error(f"Ошибка при создании настроек классификации: {e}")
+        request.session["classification_error"] = f"Ошибка при создании настроек: {e}"
+    
+    return RedirectResponse(url="/admin/classification-settings", status_code=status.HTTP_302_FOUND)
+
+
 @router.post("/classification-settings/initialize", response_class=RedirectResponse, status_code=status.HTTP_302_FOUND)
 async def initialize_classification_settings(
     request: Request,
