@@ -10,8 +10,9 @@ from typing import Optional, Dict, Any, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...infrastructure.llm import llm_service
-from ...infrastructure.services.classification_settings_service import classification_settings_service
+from src.infrastructure.llm import llm_service
+from src.infrastructure.services.classification_settings_service import classification_settings_service
+from src.infrastructure.database.connection import get_session
 
 
 class QueryType(Enum):
@@ -98,9 +99,6 @@ async def is_contact_request(user_query: str) -> bool:
         True если это запрос на контакт
     """
     # Получаем настройки из БД
-    from ...infrastructure.services.classification_settings_service import classification_settings_service
-    from ...infrastructure.database.connection import get_session
-    
     async with get_session() as session:
         settings = await classification_settings_service.get_active_settings(session)
         contact_keywords = settings.get("contact_keywords", [])
@@ -120,9 +118,6 @@ async def is_product_search(user_query: str) -> bool:
         True если это поиск товара
     """
     # Получаем настройки из БД
-    from ...infrastructure.services.classification_settings_service import classification_settings_service
-    from ...infrastructure.database.connection import get_session
-    
     async with get_session() as session:
         settings = await classification_settings_service.get_active_settings(session)
         specific_products = settings.get("specific_products", [])
@@ -162,9 +157,6 @@ async def is_company_info_request(user_query: str) -> bool:
         True если это вопрос о компании
     """
     # Получаем настройки из БД
-    from ...infrastructure.services.classification_settings_service import classification_settings_service
-    from ...infrastructure.database.connection import get_session
-    
     async with get_session() as session:
         settings = await classification_settings_service.get_active_settings(session)
         company_keywords = settings.get("company_keywords", [])

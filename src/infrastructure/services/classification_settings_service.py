@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, insert
 from sqlalchemy.orm import selectinload
 
-from ..database.models import ClassificationSettings, AdminUser
+from src.infrastructure.database.models import ClassificationSettings, AdminUser
 
 
 class ClassificationSettingsService:
@@ -170,7 +170,7 @@ class ClassificationSettingsService:
     
     def _get_default_settings(self) -> Dict[str, Any]:
         """Возвращает настройки по умолчанию."""
-        from .default_classification_settings import DEFAULT_CLASSIFICATION_SETTINGS
+        from src.infrastructure.services.default_classification_settings import DEFAULT_CLASSIFICATION_SETTINGS
         return DEFAULT_CLASSIFICATION_SETTINGS.copy()
     
     def clear_cache(self):

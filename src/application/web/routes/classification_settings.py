@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.database.connection import get_session
 from src.infrastructure.services.classification_settings_service import classification_settings_service
-from src.application.web.dependencies import get_current_admin_user
-from src.application.web.routes.admin import require_admin_user_with_redirect
+from src.application.web.routes.admin import get_current_admin_user, require_admin_user_with_redirect
 from src.infrastructure.database.models import AdminUser
 from src.presentation.template_config import templates
 
