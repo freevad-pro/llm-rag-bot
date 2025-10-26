@@ -161,6 +161,14 @@ class LLMHandlers:
     ) -> None:
         """Дополнительные действия для запросов на контакт."""
         try:
+            # Проверяем, есть ли контактные данные в самом сообщении
+            # Если пользователь уже указал контакты в сообщении - не отправляем повторный запрос
+            message_contains_contacts = await self._check_message_has_contacts(message.text)
+            
+            if message_contains_contacts:
+                self._logger.debug(f"Пропускаем follow-up - в сообщении уже есть контакты")
+                return
+            
             # Проверяем, есть ли уже контактные данные пользователя
             user_has_contacts = await self._check_user_contacts(
                 message.from_user.id, session
@@ -215,6 +223,50 @@ class LLMHandlers:
             
         except Exception as e:
             self._logger.error(f"Ошибка показа возможностей бота: {e}")
+    
+    async def _check_message_has_contacts(self, text: str) -> bool:
+        """
+        Проверяет, есть ли контактные данные в тексте сообщения.
+        
+        Args:
+            text: Текст сообщения
+            
+        Returns:
+            True если в сообщении есть контактные данные
+        """
+        try:
+            import re
+            
+            if not text:
+                return False
+            
+            text_lower = text.lower()
+            
+            # Проверяем наличие email
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            if re.search(email_pattern, text):
+                return True
+            
+            # Проверяем наличие телефона (простые паттерны)
+            phone_patterns = [
+                r'\+?\d{10,15}',  # Международный формат с +
+                r'\d{3}[-.\s]?\d{3}[-.\s]?\d{4}',  # США формат
+                r'\+?7\s?\d{3}\s?\d{3}\s?\d{2}\s?\d{2}',  # Российский формат
+            ]
+            
+            for pattern in phone_patterns:
+                if re.search(pattern, text):
+                    return True
+            
+            # Проверяем наличие упоминания telegram username
+            if '@' in text:
+                return True
+            
+            return False
+            
+        except Exception as e:
+            self._logger.error(f"Ошибка проверки контактов в сообщении: {e}")
+            return False
     
     async def _check_user_contacts(
         self, 
