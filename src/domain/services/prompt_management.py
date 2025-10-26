@@ -182,6 +182,12 @@ class PromptManagementService:
                 "content": IMPROVED_PROMPTS["company_info_prompt"],
                 "display_name": "Информация о компании",
                 "description": "Промпт для ответов на вопросы о компании"
+            },
+
+            "search_query_extraction_prompt": {
+                "content": IMPROVED_PROMPTS["search_query_extraction_prompt"],
+                "display_name": "Извлечение поискового запроса",
+                "description": "Промпт для извлечения ключевых слов из пользовательских запросов для поиска товаров"
             }
         }
         

@@ -531,7 +531,15 @@ class SearchOrchestrator:
             Очищенный поисковый запрос
         """
         try:
-            extraction_prompt = f"""
+            # Получаем управляемый промпт для извлечения поискового запроса
+            from .prompt_management import prompt_management_service
+            extraction_prompt_obj = await prompt_management_service.get_prompt_by_name(session, "search_query_extraction_prompt")
+            
+            if extraction_prompt_obj:
+                extraction_prompt = extraction_prompt_obj.content.format(user_query=user_query)
+            else:
+                # Fallback на базовый промпт если управляемый не найден
+                extraction_prompt = f"""
 Ты помощник для извлечения ключевых слов поиска товаров из пользовательских запросов.
 
 Пользователь спрашивает: "{user_query}"
